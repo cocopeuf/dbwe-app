@@ -433,10 +433,12 @@ def edit_dinner_event(event_id):
 @bp.route('/upcoming_events')
 @login_required
 def upcoming_events():
-    from datetime import datetime
-    # Select events with date in the future
+    from datetime import date
+    # Compare only the date portion
     all_events = db.session.scalars(
-        sa.select(DinnerEvent).where(DinnerEvent.event_date >= datetime.now()).order_by(DinnerEvent.event_date.asc())
+        sa.select(DinnerEvent)
+          .where(sa.func.date(DinnerEvent.event_date) >= date.today())
+          .order_by(DinnerEvent.event_date.asc())
     ).all()
     events = []
     for event in all_events:
