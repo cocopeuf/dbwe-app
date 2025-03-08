@@ -399,6 +399,10 @@ class DinnerEvent(db.Model):
     def uninvite_user(self, user):
         if user in self.invited:
             self.invited.remove(user)
+            # Remove existing RSVP, if any, for this user
+            rsvp = next((r for r in self.rsvps if r.user_id == user.id), None)
+            if rsvp:
+                db.session.delete(rsvp)
 
     # New: RSVP helper method
     def rsvp(self, user, status):
