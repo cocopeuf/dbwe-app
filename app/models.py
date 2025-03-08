@@ -368,6 +368,8 @@ class DinnerEvent(db.Model):
     title = db.Column(sa.String(128), nullable=False)
     description = db.Column(sa.Text)
     menu_url = db.Column(sa.String(256), nullable=False)
+    # Updated date field using a SQL expression default
+    date = db.Column(sa.DateTime, nullable=False, server_default=sa.text('CURRENT_TIMESTAMP'))
     creator_id = db.Column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
     # relationships
     creator = db.relationship('User', backref='created_dinner_events')

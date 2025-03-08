@@ -11,6 +11,7 @@ from app.main.forms import EditProfileForm, EmptyForm, PostForm, SearchForm, \
 from app.models import User, Post, Message, Notification, DinnerEvent  # import DinnerEvent
 from app.translate import translate
 from app.main import bp
+from sqlalchemy.orm import joinedload
 
 
 @bp.before_app_request
@@ -55,16 +56,16 @@ def index():
 @login_required
 def explore():
     page = request.args.get('page', 1, type=int)
+    per_page = current_app.config.get('POSTS_PER_PAGE', 10)
     query = sa.select(Post).order_by(Post.timestamp.desc())
-    posts = db.paginate(query, page=page,
-                        per_page=current_app.config['POSTS_PER_PAGE'],
-                        error_out=False)
-    next_url = url_for('main.explore', page=posts.next_num) \
-        if posts.has_next else None
-    prev_url = url_for('main.explore', page=posts.prev_num) \
-        if posts.has_prev else None
+    total = db.session.scalar(sa.select(sa.func.count()).select_from(Post))
+    posts = db.session.scalars(
+        query.offset((page - 1) * per_page).limit(per_page)
+    ).all()
+    next_url = url_for('main.explore', page=page + 1) if page * per_page < total else None
+    prev_url = url_for('main.explore', page=page - 1) if page > 1 else None
     return render_template('index.html', title=_('Explore'),
-                           posts=posts.items, next_url=next_url,
+                           posts=posts, next_url=next_url,
                            prev_url=prev_url)
 
 
@@ -250,9 +251,24 @@ def create_dinner_event():
             title=form.title.data,
             description=form.description.data,
             menu_url=form.menu_url.data,
+            date=form.date.data,  # assign event date
             creator=current_user
         )
         db.session.add(event)
+        # Process invite field if any
+        if form.invite.data:
+            invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
+            for identifier in invitees:
+                # Search by username or email
+                user = db.session.scalar(sa.select(User).where(
+                    sa.or_(User.username == identifier, User.email == identifier)
+                ))
+                if user is not None:
+                    event.invite_user(user)
+                    # Add notification for invite
+                    user.add_notification('dinner_event_invite', 
+                        {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
+                         'event_id': event.id})
         db.session.commit()
         flash(_('Dinner event created successfully!'))
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
@@ -261,32 +277,54 @@ def create_dinner_event():
 @bp.route('/dinner_event/<int:event_id>')
 @login_required
 def dinner_event_detail(event_id):
-    event = db.session.get(DinnerEvent, event_id)
+    q = sa.select(DinnerEvent).options(
+            joinedload(DinnerEvent.creator),
+            joinedload(DinnerEvent.invited)
+        ).where(DinnerEvent.id == event_id)
+    event = db.session.scalar(q)
     if event is None:
         flash(_('Dinner event not found.'))
         return redirect(url_for('main.index'))
+    # Added permission check: Only show event if current_user is creator or invited
+    if event.creator != current_user and current_user not in event.invited:
+        flash(_('You are not allowed to view this dinner event.'))
+        return redirect(url_for('main.dinner_events_list'))
     return render_template('dinner_event_detail.html', event=event)
 
-@bp.route('/dinner_event/<int:event_id>/invite/<username>', methods=['POST'])
+@bp.route('/dinner_event/<int:event_id>/invite/<identifier>', methods=['POST'])
 @login_required
-def invite_to_dinner_event(event_id, username):
+def invite_to_dinner_event(event_id, identifier):
     event = db.session.get(DinnerEvent, event_id)
     if event is None or event.creator != current_user:
         flash(_('You are not allowed to invite users to this dinner event.'))
         return redirect(url_for('main.index'))
-    user = db.session.scalar(sa.select(User).where(User.username == username))
+    user = db.session.scalar(sa.select(User).where(
+        sa.or_(User.username == identifier, User.email == identifier)
+    ))
     if user is None:
-        flash(_('User %(username)s not found.', username=username))
+        flash(_('User %(identifier)s not found.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.invite_user(user)
+    user.add_notification('dinner_event_invite', 
+        {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
+         'event_id': event.id})
     db.session.commit()
-    flash(_('User %(username)s has been invited.', username=username))
+    flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
 @bp.route('/dinner_events')
 @login_required
 def dinner_events_list():
-    events = db.session.scalars(sa.select(DinnerEvent).order_by(DinnerEvent.id.desc())).all()
+    q = sa.select(DinnerEvent).options(
+        joinedload(DinnerEvent.creator),
+        joinedload(DinnerEvent.invited)
+    ).where(
+        sa.or_(
+            DinnerEvent.creator_id == current_user.id,
+            DinnerEvent.invited.any(User.id == current_user.id)
+        )
+    ).order_by(DinnerEvent.id.desc())
+    events = db.session.execute(q).unique().scalars().all()
     return render_template('dinner_events_list.html', title=_('Dinner Events'), events=events)
 
 @bp.route('/dinner_event/<int:event_id>/edit', methods=['GET', 'POST'])
@@ -301,7 +339,30 @@ def edit_dinner_event(event_id):
         event.title = form.title.data
         event.description = form.description.data
         event.menu_url = form.menu_url.data
+        event.date = form.date.data  # update event date
+        # Process new invitations if any
+        if form.invite.data:
+            invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
+            for identifier in invitees:
+                user = db.session.scalar(sa.select(User).where(
+                    sa.or_(User.username == identifier, User.email == identifier)
+                ))
+                if user is not None:
+                    event.invite_user(user)
+                    user.add_notification('dinner_event_invite', 
+                        {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
+                         'event_id': event.id})
         db.session.commit()
         flash(_('Dinner event updated.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
     return render_template('edit_dinner_event.html', title=_('Edit Dinner Event'), form=form, event=event)
+
+# New route: Message Board for Upcoming Events
+@bp.route('/upcoming_events')
+@login_required
+def upcoming_events():
+    from datetime import datetime
+    # Select events with date in the future
+    q = sa.select(DinnerEvent).where(DinnerEvent.date >= datetime.now()).order_by(DinnerEvent.date.asc())
+    events = db.session.scalars(q).all()
+    return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
