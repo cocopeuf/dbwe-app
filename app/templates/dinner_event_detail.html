@@ -4,7 +4,7 @@
   <p>{{ event.description }}</p>
   <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
   <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Menu') }}</a></p>
-  <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
+  <p>{{ _('Event Date:') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}</p>
   
   {% if user_rsvp %}
     <p><strong>{{ _('Your RSVP:') }} {{ user_rsvp.status|capitalize }}</strong></p>
@@ -17,7 +17,15 @@
   <h3>{{ _('Invited Users') }}</h3>
   <ul>
     {% for user in event.invited %}
-      <li>{{ user.username }}</li>
+      <li>
+        {{ user.username }}
+        {% if current_user == event.creator %}
+          <form action="{{ url_for('main.uninvite_to_dinner_event', event_id=event.id, identifier=user.username) }}" method="post" style="display:inline;">
+            {{ comment_form.hidden_tag() }}
+            <button type="submit" class="btn btn-link btn-sm text-danger">{{ _('Uninvite') }}</button>
+          </form>
+        {% endif %}
+      </li>
     {% else %}
       <li>{{ _('No invitations yet.') }}</li>
     {% endfor %}

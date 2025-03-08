@@ -395,6 +395,10 @@ class DinnerEvent(db.Model):
     def invite_user(self, user):
         if user not in self.invited:
             self.invited.append(user)
+            
+    def uninvite_user(self, user):
+        if user in self.invited:
+            self.invited.remove(user)
 
     # New: RSVP helper method
     def rsvp(self, user, status):

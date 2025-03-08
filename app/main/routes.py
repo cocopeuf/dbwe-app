@@ -349,6 +349,24 @@ def invite_to_dinner_event(event_id, identifier):
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+@bp.route('/dinner_event/<int:event_id>/uninvite/<identifier>', methods=['POST'])
+@login_required
+def uninvite_to_dinner_event(event_id, identifier):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None or event.creator != current_user:
+        flash(_('You are not allowed to uninvite users from this dinner event.'))
+        return redirect(url_for('main.index'))
+    user = db.session.scalar(sa.select(User).where(
+        sa.or_(User.username == identifier, User.email == identifier)
+    ))
+    if user is None or user not in event.invited:
+        flash(_('User %(identifier)s is not invited.', identifier=identifier))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.uninvite_user(user)
+    db.session.commit()
+    flash(_('User %(identifier)s has been uninvited.', identifier=identifier))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
 @bp.route('/dinner_events')
 @login_required
 def dinner_events_list():
