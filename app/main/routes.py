@@ -43,13 +43,17 @@ def index():
     posts = db.paginate(current_user.following_posts(), page=page,
                         per_page=current_app.config['POSTS_PER_PAGE'],
                         error_out=False)
+    # New: Fetch up to 3 upcoming dinner events
+    upcoming_events = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date >= datetime.now()).order_by(DinnerEvent.event_date.asc()).limit(3)
+    ).all()
     next_url = url_for('main.index', page=posts.next_num) \
         if posts.has_next else None
     prev_url = url_for('main.index', page=posts.prev_num) \
         if posts.has_prev else None
     return render_template('index.html', title=_('Home'), form=form,
                            posts=posts.items, next_url=next_url,
-                           prev_url=prev_url)
+                           prev_url=prev_url, upcoming_events=upcoming_events)
 
 
 @bp.route('/explore')

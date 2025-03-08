@@ -23,4 +23,32 @@
             </li>
         </ul>
     </nav>
+    
+    <!-- New: Invitations Section -->
+    <div class="invitations mt-4">
+      <h2>{{ _('Your Invitations') }}</h2>
+      <ul>
+        {% for event in current_user.invited_dinner_events %}
+          <li>
+            {{ event.title }} - {{ _('Invited by') }} {{ event.creator.username }} - {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+          </li>
+        {% else %}
+          <li>{{ _('No invitations.') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    
+    <!-- New: Upcoming Dinner Events Section -->
+    <div class="upcoming-events mt-4">
+      <h2>{{ _('Upcoming Dinner Events') }}</h2>
+      <ul>
+        {% for event in upcoming_events %}
+          <li>
+            {{ event.title }} - {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+          </li>
+        {% else %}
+          <li>{{ _('No upcoming events.') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
 {% endblock %}
