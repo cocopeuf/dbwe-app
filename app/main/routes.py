@@ -214,8 +214,16 @@ def messages():
         if messages.has_next else None
     prev_url = url_for('main.messages', page=messages.prev_num) \
         if messages.has_prev else None
+    
+    # Query event notifications (history)
+    event_notif = ["event_created", "dinner_event_invite", "rsvp_updated", "uninvited"]
+    history_query = current_user.notifications.select().where(
+        Notification.name.in_(event_notif)
+    ).order_by(Notification.timestamp.desc())
+    history = list(db.session.scalars(history_query))
+    
     return render_template('messages.html', messages=messages.items,
-                           next_url=next_url, prev_url=prev_url)
+                           next_url=next_url, prev_url=prev_url, history=history)
 
 
 @bp.route('/export_posts')
