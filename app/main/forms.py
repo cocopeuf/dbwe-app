@@ -1,7 +1,7 @@
 from flask import request
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, TextAreaField
-from wtforms.validators import ValidationError, DataRequired, Length
+from wtforms.validators import ValidationError, DataRequired, Length, URL
 import sqlalchemy as sa
 from flask_babel import _, lazy_gettext as _l
 from app import db
@@ -51,3 +51,10 @@ class MessageForm(FlaskForm):
     message = TextAreaField(_l('Message'), validators=[
         DataRequired(), Length(min=1, max=140)])
     submit = SubmitField(_l('Submit'))
+
+
+class DinnerEventForm(FlaskForm):
+    title = StringField(_l('Title'), validators=[DataRequired(), Length(max=128)])
+    description = TextAreaField(_l('Description'))
+    menu_url = StringField(_l('Menu URL'), validators=[DataRequired(), URL(), Length(max=256)])
+    submit = SubmitField(_l('Create Dinner Event'))

@@ -7,8 +7,8 @@ import sqlalchemy as sa
 from langdetect import detect, LangDetectException
 from app import db
 from app.main.forms import EditProfileForm, EmptyForm, PostForm, SearchForm, \
-    MessageForm
-from app.models import User, Post, Message, Notification
+    MessageForm, DinnerEventForm  # import the new form
+from app.models import User, Post, Message, Notification, DinnerEvent  # import DinnerEvent
 from app.translate import translate
 from app.main import bp
 
@@ -239,3 +239,69 @@ def notifications():
         'data': n.get_data(),
         'timestamp': n.timestamp
     } for n in notifications]
+
+
+@bp.route('/create_dinner_event', methods=['GET', 'POST'])
+@login_required
+def create_dinner_event():
+    form = DinnerEventForm()
+    if form.validate_on_submit():
+        event = DinnerEvent(
+            title=form.title.data,
+            description=form.description.data,
+            menu_url=form.menu_url.data,
+            creator=current_user
+        )
+        db.session.add(event)
+        db.session.commit()
+        flash(_('Dinner event created successfully!'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event.id))
+    return render_template('create_dinner_event.html', title=_('Create Dinner Event'), form=form)
+
+@bp.route('/dinner_event/<int:event_id>')
+@login_required
+def dinner_event_detail(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None:
+        flash(_('Dinner event not found.'))
+        return redirect(url_for('main.index'))
+    return render_template('dinner_event_detail.html', event=event)
+
+@bp.route('/dinner_event/<int:event_id>/invite/<username>', methods=['POST'])
+@login_required
+def invite_to_dinner_event(event_id, username):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None or event.creator != current_user:
+        flash(_('You are not allowed to invite users to this dinner event.'))
+        return redirect(url_for('main.index'))
+    user = db.session.scalar(sa.select(User).where(User.username == username))
+    if user is None:
+        flash(_('User %(username)s not found.', username=username))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.invite_user(user)
+    db.session.commit()
+    flash(_('User %(username)s has been invited.', username=username))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_events')
+@login_required
+def dinner_events_list():
+    events = db.session.scalars(sa.select(DinnerEvent).order_by(DinnerEvent.id.desc())).all()
+    return render_template('dinner_events_list.html', title=_('Dinner Events'), events=events)
+
+@bp.route('/dinner_event/<int:event_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_dinner_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None or event.creator != current_user:
+        flash(_('You are not allowed to edit this dinner event.'))
+        return redirect(url_for('main.dinner_events_list'))
+    form = DinnerEventForm(obj=event)
+    if form.validate_on_submit():
+        event.title = form.title.data
+        event.description = form.description.data
+        event.menu_url = form.menu_url.data
+        db.session.commit()
+        flash(_('Dinner event updated.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event.id))
+    return render_template('edit_dinner_event.html', title=_('Edit Dinner Event'), form=form, event=event)

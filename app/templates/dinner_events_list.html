@@ -1,0 +1,17 @@
+
+{% extends "base.html" %}
+{% block content %}
+  <h1>{{ _('Dinner Events') }}</h1>
+  <ul class="list-group">
+    {% for event in events %}
+      <li class="list-group-item">
+        <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+        {% if current_user == event.creator %}
+          <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-sm btn-secondary float-end">{{ _('Edit') }}</a>
+        {% endif %}
+      </li>
+    {% else %}
+      <li class="list-group-item">{{ _('No dinner events available.') }}</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

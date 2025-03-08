@@ -94,6 +94,12 @@ followers = sa.Table(
               primary_key=True)
 )
 
+dinner_event_invites = sa.Table(
+    'dinner_event_invites',
+    db.metadata,
+    sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
+)
 
 class User(PaginatedAPIMixin, UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -354,3 +360,25 @@ class Task(db.Model):
     def get_progress(self):
         job = self.get_rq_job()
         return job.meta.get('progress', 0) if job is not None else 100
+
+
+class DinnerEvent(db.Model):
+    __tablename__ = 'dinnerevent'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(sa.String(128), nullable=False)
+    description = db.Column(sa.Text)
+    menu_url = db.Column(sa.String(256), nullable=False)
+    creator_id = db.Column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
+    # relationships
+    creator = db.relationship('User', backref='created_dinner_events')
+    invited = db.relationship(
+        'User',
+        secondary=dinner_event_invites,
+        primaryjoin="dinner_event_invites.c.dinner_event_id == DinnerEvent.id",
+        secondaryjoin="dinner_event_invites.c.user_id == User.id",
+        backref='invited_dinner_events'
+    )
+
+    def invite_user(self, user):
+        if user not in self.invited:
+            self.invited.append(user)

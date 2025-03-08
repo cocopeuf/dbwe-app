@@ -1,0 +1,19 @@
+
+{% extends "base.html" %}
+{% block content %}
+  <h1>{{ event.title }}</h1>
+  <p>{{ event.description }}</p>
+  <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Menu') }}</a></p>
+  <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
+  {% if current_user == event.creator %}
+    <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-secondary">{{ _('Edit') }}</a>
+  {% endif %}
+  <h3>{{ _('Invited Users') }}</h3>
+  <ul>
+    {% for user in event.invited %}
+      <li>{{ user.username }}</li>
+    {% else %}
+      <li>{{ _('No invitations yet.') }}</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
