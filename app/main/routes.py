@@ -1,63 +1,35 @@
 from datetime import datetime, timezone
-from flask import render_template, flash, redirect, url_for, request, g, \
-    current_app
+from flask import render_template, flash, redirect, url_for, request, g, current_app
+from app.main import bp
 from flask_login import current_user, login_required
 from flask_babel import _, get_locale
 import sqlalchemy as sa
-from langdetect import detect, LangDetectException
 from app import db
-from app.main.forms import EditProfileForm, EmptyForm, PostForm, SearchForm, \
-    MessageForm, DinnerEventForm, CommentForm  # add import with existing form imports
-from app.models import User, Post, Message, Notification, DinnerEvent, Comment  # add import for Comment
-from app.translate import translate
-from app.main import bp
+from app.main.forms import EditProfileForm, EmptyForm, MessageForm, DinnerEventForm, CommentForm  
+from app.models import User, Message, Notification, DinnerEvent, Comment
 from sqlalchemy.orm import joinedload
-
 
 @bp.before_app_request
 def before_request():
     if current_user.is_authenticated:
         current_user.last_seen = datetime.now(timezone.utc)
         db.session.commit()
-        g.search_form = SearchForm()
     g.locale = str(get_locale())
 
-
-@bp.route('/', methods=['GET', 'POST'])
-@bp.route('/index', methods=['GET', 'POST'])
+@bp.route('/', methods=['GET'])
+@bp.route('/index', methods=['GET'])
 @login_required
 def index():
-    form = PostForm()
-    if form.validate_on_submit():
-        try:
-            language = detect(form.post.data)
-        except LangDetectException:
-            language = ''
-        post = Post(body=form.post.data, author=current_user,
-                    language=language)
-        db.session.add(post)
-        db.session.commit()
-        flash(_('Your post is now live!'))
-        return redirect(url_for('main.index'))
-    page = request.args.get('page', 1, type=int)
-    posts = db.paginate(current_user.following_posts(), page=page,
-                        per_page=current_app.config['POSTS_PER_PAGE'],
-                        error_out=False)
-    # New: Fetch up to 3 upcoming dinner events
     upcoming_events = db.session.scalars(
-        sa.select(DinnerEvent).where(DinnerEvent.event_date >= datetime.now()).order_by(DinnerEvent.event_date.asc()).limit(3)
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.event_date >= datetime.now())
+          .order_by(DinnerEvent.event_date.asc())
+          .limit(3)
     ).all()
-    next_url = url_for('main.index', page=posts.next_num) \
-        if posts.has_next else None
-    prev_url = url_for('main.index', page=posts.prev_num) \
-        if posts.has_prev else None
-    return render_template('index.html', title=_('Home'), form=form,
-                           posts=posts.items, next_url=next_url,
-                           prev_url=prev_url, upcoming_events=upcoming_events)
-
+    return render_template('index.html', title=_('Home'),
+                           upcoming_events=upcoming_events)
 
 @bp.route('/explore')
-@login_required
 def explore():
     from datetime import datetime
     now = datetime.now()
@@ -67,25 +39,20 @@ def explore():
     previous = db.session.scalars(
         sa.select(DinnerEvent).where(DinnerEvent.event_date < now).order_by(DinnerEvent.event_date.desc())
     ).all()
-    return render_template('explore.html', title=_('Explore'), upcoming=upcoming, previous=previous)
+    description = ""
+    if not current_user.is_authenticated:
+        description = ("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
+                       "tempor incididunt ut labore et dolore magna aliqua. Please <a href='{}'>login</a> "
+                       "to see more that Webapp.").format(url_for('auth.login'))
+    return render_template('explore.html', title=_('Explore'), upcoming=upcoming, previous=previous, description=description)
 
 
 @bp.route('/user/<username>')
 @login_required
 def user(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
-    page = request.args.get('page', 1, type=int)
-    query = user.posts.select().order_by(Post.timestamp.desc())
-    posts = db.paginate(query, page=page,
-                        per_page=current_app.config['POSTS_PER_PAGE'],
-                        error_out=False)
-    next_url = url_for('main.user', username=user.username,
-                       page=posts.next_num) if posts.has_next else None
-    prev_url = url_for('main.user', username=user.username,
-                       page=posts.prev_num) if posts.has_prev else None
     form = EmptyForm()
-    return render_template('user.html', user=user, posts=posts.items,
-                           next_url=next_url, prev_url=prev_url, form=form)
+    return render_template('user.html', user=user, form=form)
 
 
 @bp.route('/user/<username>/popup')
@@ -155,31 +122,6 @@ def unfollow(username):
         return redirect(url_for('main.index'))
 
 
-@bp.route('/translate', methods=['POST'])
-@login_required
-def translate_text():
-    data = request.get_json()
-    return {'text': translate(data['text'],
-                              data['source_language'],
-                              data['dest_language'])}
-
-
-@bp.route('/search')
-@login_required
-def search():
-    if not g.search_form.validate():
-        return redirect(url_for('main.explore'))
-    page = request.args.get('page', 1, type=int)
-    posts, total = Post.search(g.search_form.q.data, page,
-                               current_app.config['POSTS_PER_PAGE'])
-    next_url = url_for('main.search', q=g.search_form.q.data, page=page + 1) \
-        if total > page * current_app.config['POSTS_PER_PAGE'] else None
-    prev_url = url_for('main.search', q=g.search_form.q.data, page=page - 1) \
-        if page > 1 else None
-    return render_template('search.html', title=_('Search'), posts=posts,
-                           next_url=next_url, prev_url=prev_url)
-
-
 @bp.route('/send_message/<recipient>', methods=['GET', 'POST'])
 @login_required
 def send_message(recipient):
@@ -214,19 +156,16 @@ def messages():
         if messages.has_next else None
     prev_url = url_for('main.messages', page=messages.prev_num) \
         if messages.has_prev else None
+    
+    # Query event notifications (history)
+    event_notif = ["event_created", "dinner_event_invite", "rsvp_updated", "uninvited"]
+    history_query = current_user.notifications.select().where(
+        Notification.name.in_(event_notif)
+    ).order_by(Notification.timestamp.desc())
+    history = list(db.session.scalars(history_query))
+    
     return render_template('messages.html', messages=messages.items,
-                           next_url=next_url, prev_url=prev_url)
-
-
-@bp.route('/export_posts')
-@login_required
-def export_posts():
-    if current_user.get_task_in_progress('export_posts'):
-        flash(_('An export task is currently in progress'))
-    else:
-        current_user.launch_task('export_posts', _('Exporting posts...'))
-        db.session.commit()
-    return redirect(url_for('main.user', username=current_user.username))
+                           next_url=next_url, prev_url=prev_url, history=history)
 
 
 @bp.route('/notifications')
@@ -270,6 +209,12 @@ def create_dinner_event():
                     user.add_notification('dinner_event_invite', 
                         {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
                          'event_id': event.id})
+        # New: Add event_created notification for the creator
+        current_user.add_notification('event_created', {
+            'message': _('You created the event: %(event_title)s', event_title=event.title),
+            'event_id': event.id,
+            'event_title': event.title
+        })
         db.session.commit()
         flash(_('Dinner event created successfully!'))
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
@@ -342,9 +287,11 @@ def invite_to_dinner_event(event_id, identifier):
         flash(_('User %(identifier)s not found.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.invite_user(user)
-    user.add_notification('dinner_event_invite', 
-        {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
-         'event_id': event.id})
+    user.add_notification('dinner_event_invite', {
+        'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
+        'event_id': event.id,
+        'event_title': event.title
+    })
     db.session.commit()
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
@@ -363,6 +310,16 @@ def uninvite_to_dinner_event(event_id, identifier):
         flash(_('User %(identifier)s is not invited.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.uninvite_user(user)
+    user.add_notification('uninvited', {
+        'message': _('You have been uninvited from the event: %(event_title)s', event_title=event.title),
+        'event_id': event.id,
+        'event_title': event.title
+    })
+    # Clean up invitation notifications for this event
+    for notification in list(user.notifications):
+        data = notification.get_data()
+        if notification.name == 'dinner_event_invite' and data.get('event_id') == event.id:
+            db.session.delete(notification)
     db.session.commit()
     flash(_('User %(identifier)s has been uninvited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
@@ -418,10 +375,12 @@ def edit_dinner_event(event_id):
 @bp.route('/upcoming_events')
 @login_required
 def upcoming_events():
-    from datetime import datetime
-    # Select events with date in the future
+    from datetime import date
+    # Compare only the date portion
     all_events = db.session.scalars(
-        sa.select(DinnerEvent).where(DinnerEvent.event_date >= datetime.now()).order_by(DinnerEvent.event_date.asc())
+        sa.select(DinnerEvent)
+          .where(sa.func.date(DinnerEvent.event_date) >= date.today())
+          .order_by(DinnerEvent.event_date.asc())
     ).all()
     events = []
     for event in all_events:
@@ -447,6 +406,12 @@ def rsvp_dinner_event(event_id):
         flash(_('Invalid RSVP choice.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.rsvp(current_user, rsvp_choice)
+    current_user.add_notification('rsvp_updated', {
+        'message': _('Your RSVP for event: %(event_title)s has been updated', event_title=event.title),
+        'event_id': event.id,
+        'event_title': event.title,
+        'status': rsvp_choice
+    })
     db.session.commit()
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))

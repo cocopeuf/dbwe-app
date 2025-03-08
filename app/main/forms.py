@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from flask_babel import _, lazy_gettext as _l
 from app import db
 from app.models import User
-from wtforms.fields import DateField 
+from wtforms.fields import DateField, DateTimeField
 
 
 class EditProfileForm(FlaskForm):
@@ -31,23 +31,6 @@ class EmptyForm(FlaskForm):
     submit = SubmitField('Submit')
 
 
-class PostForm(FlaskForm):
-    post = TextAreaField(_l('Say something'), validators=[
-        DataRequired(), Length(min=1, max=140)])
-    submit = SubmitField(_l('Submit'))
-
-
-class SearchForm(FlaskForm):
-    q = StringField(_l('Search'), validators=[DataRequired()])
-
-    def __init__(self, *args, **kwargs):
-        if 'formdata' not in kwargs:
-            kwargs['formdata'] = request.args
-        if 'meta' not in kwargs:
-            kwargs['meta'] = {'csrf': False}
-        super(SearchForm, self).__init__(*args, **kwargs)
-
-
 class MessageForm(FlaskForm):
     message = TextAreaField(_l('Message'), validators=[
         DataRequired(), Length(min=1, max=140)])
@@ -57,8 +40,8 @@ class MessageForm(FlaskForm):
 class DinnerEventForm(FlaskForm):
     title = StringField(_l('Title'), validators=[DataRequired(), Length(max=128)])
     description = TextAreaField(_l('Description'))
-    menu_url = StringField(_l('Menu URL'), validators=[DataRequired(), URL(), Length(max=256)])
-    date = DateField(_l('Event Date'), format='%Y-%m-%d', validators=[DataRequired()])
+    menu_url = StringField(_l('Restaurant URL'), validators=[URL(), Length(max=256)])
+    date = DateTimeField(_l('Event Date'), format='%Y-%m-%d %hh-%m', validators=[DataRequired()])
     invite = StringField(_l('Invite Users (comma separated)'))
     submit = SubmitField(_l('Create Dinner Event'))
 
