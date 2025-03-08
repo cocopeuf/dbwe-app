@@ -339,6 +339,9 @@ def edit_dinner_event(event_id):
         flash(_('You are not allowed to edit this dinner event.'))
         return redirect(url_for('main.dinner_events_list'))
     form = DinnerEventForm(obj=event)
+    if request.method == 'GET':
+        # Ensure the date field shows the current event date (as a date object)
+        form.date.data = event.event_date.date()
     if form.validate_on_submit():
         event.title = form.title.data
         event.description = form.description.data

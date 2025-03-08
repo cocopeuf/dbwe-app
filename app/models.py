@@ -105,7 +105,7 @@ class DinnerEventRsvp(db.Model):
     __tablename__ = 'dinner_event_rsvps'
     dinner_event_id = db.Column(db.Integer, db.ForeignKey('dinnerevent.id'), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    status = db.Column(sa.String(16), nullable=False, server_default='declined')  # 'accepted' or 'declined'
+    status = db.Column(sa.String(16), nullable=False, server_default='no_response')
     user = db.relationship('User', back_populates='dinner_event_rsvps')
     event = db.relationship('DinnerEvent', back_populates='rsvps')
 

@@ -11,10 +11,13 @@
     {% for event in upcoming_events %}
       {% if event.creator == current_user %}
          {% set _ = created_events.append(event) %}
-      {% elif event.rsvps|selectattr("user_id", "equalto", current_user.id)|selectattr("status", "equalto", "accepted")|list %}
-         {% set _ = accepted_events.append(event) %}
-      {% elif current_user in event.invited %}
-         {% set _ = invited_events.append(event) %}
+      {% else %}
+         {% set rsvp_list = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list %}
+         {% if rsvp_list and rsvp_list[0].status == 'accepted' %}
+             {% set _ = accepted_events.append(event) %}
+         {% else %}
+             {% set _ = invited_events.append(event) %}
+         {% endif %}
       {% endif %}
     {% endfor %}
 
