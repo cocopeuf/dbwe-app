@@ -215,8 +215,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             query.subquery()))
 
     def add_notification(self, name, data):
-        db.session.execute(self.notifications.delete().where(
-            Notification.name == name))
         n = Notification(name=name, payload_json=json.dumps(data), user=self)
         db.session.add(n)
         return n

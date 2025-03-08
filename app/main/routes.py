@@ -210,18 +210,12 @@ def messages():
     messages = db.paginate(query, page=page,
                            per_page=current_app.config['POSTS_PER_PAGE'],
                            error_out=False)
-    next_url = url_for('main.messages', page=messages.next_num) if messages.has_next else None
-    prev_url = url_for('main.messages', page=messages.prev_num) if messages.has_prev else None
-
-    # New: Query event history notifications
-    event_notif = ["event_created", "dinner_event_invite", "rsvp_updated", "uninvited"]
-    history_query = current_user.notifications.select().where(
-        Notification.name.in_(event_notif)
-    ).order_by(Notification.timestamp.desc())
-    history = list(db.session.scalars(history_query))
-
+    next_url = url_for('main.messages', page=messages.next_num) \
+        if messages.has_next else None
+    prev_url = url_for('main.messages', page=messages.prev_num) \
+        if messages.has_prev else None
     return render_template('messages.html', messages=messages.items,
-                           next_url=next_url, prev_url=prev_url, history=history)
+                           next_url=next_url, prev_url=prev_url)
 
 
 @bp.route('/export_posts')
@@ -276,6 +270,11 @@ def create_dinner_event():
                     user.add_notification('dinner_event_invite', 
                         {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
                          'event_id': event.id})
+        # New: Add event_created notification for the creator
+        current_user.add_notification('event_created', {
+            'message': _('You created the event: %(event_title)s', event_title=event.title),
+            'event_id': event.id
+        })
         db.session.commit()
         flash(_('Dinner event created successfully!'))
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
@@ -369,6 +368,16 @@ def uninvite_to_dinner_event(event_id, identifier):
         flash(_('User %(identifier)s is not invited.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.uninvite_user(user)
+    # New: Add uninvited notification for the affected user
+    user.add_notification('uninvited', {
+        'message': _('You have been uninvited from the event: %(event_title)s', event_title=event.title),
+        'event_id': event.id
+    })
+    # Clean up invitation notifications for this event
+    for notification in list(user.notifications):
+        data = notification.get_data()
+        if notification.name == 'dinner_event_invite' and data.get('event_id') == event.id:
+            db.session.delete(notification)
     db.session.commit()
     flash(_('User %(identifier)s has been uninvited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
@@ -453,6 +462,12 @@ def rsvp_dinner_event(event_id):
         flash(_('Invalid RSVP choice.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.rsvp(current_user, rsvp_choice)
+    # New: Add rsvp_updated notification for current_user
+    current_user.add_notification('rsvp_updated', {
+        'message': _('Your RSVP for event: %(event_title)s has been updated', event_title=event.title),
+        'event_id': event.id,
+        'status': rsvp_choice
+    })
     db.session.commit()
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
