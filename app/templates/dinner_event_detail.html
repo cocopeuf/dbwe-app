@@ -105,10 +105,12 @@
   {% if current_user.is_authenticated %}
     <h3>{{ _('Add a Comment') }}</h3>
     <form action="{{ url_for('main.comment_event', event_id=event.id) }}" method="post">
+      {{ comment_form.hidden_tag() }}
       <div class="mb-3">
-        <textarea name="body" class="form-control" rows="3" placeholder="{{ _('Enter your comment') }}"></textarea>
+        {{ comment_form.body.label }} 
+        {{ comment_form.body(class="form-control", placeholder=_('Enter your comment')) }}
       </div>
-      <button type="submit" class="btn btn-primary">{{ _('Submit Comment') }}</button>
+      {{ comment_form.submit(class="btn btn-primary") }}
     </form>
   {% endif %}
 {% endblock %}
