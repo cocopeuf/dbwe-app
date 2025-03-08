@@ -366,8 +366,15 @@ def edit_dinner_event(event_id):
 def upcoming_events():
     from datetime import datetime
     # Select events with date in the future
-    q = sa.select(DinnerEvent).where(DinnerEvent.date >= datetime.now()).order_by(DinnerEvent.date.asc())
-    events = db.session.scalars(q).all()
+    all_events = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date >= datetime.now()).order_by(DinnerEvent.event_date.asc())
+    ).all()
+    events = []
+    for event in all_events:
+        rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
+        if rsvp and rsvp.status == 'declined':
+            continue
+        events.append(event)
     return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
 
 @bp.route('/dinner_event/<int:event_id>/rsvp', methods=['POST'])
