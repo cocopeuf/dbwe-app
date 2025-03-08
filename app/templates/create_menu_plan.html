@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Neuen Menüplan erstellen</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <p>
+      {{ form.title.label }}<br>
+      {{ form.title }}
+    </p>
+    <p>
+      {{ form.date.label }}<br>
+      {{ form.date }}
+    </p>
+    <p>
+      {{ form.menu.label }}<br>
+      {{ form.menu }}
+    </p>
+    <p>
+      {{ form.wishes.label }}<br>
+      {{ form.wishes }}
+    </p>
+    <p>{{ form.submit }}</p>
+  </form>
+{% endblock %}
+

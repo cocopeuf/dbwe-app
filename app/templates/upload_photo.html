@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Neue Veranstaltung erstellen</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    {{ form.title.label }} {{ form.title }}<br>
+    {{ form.description.label }}<br>{{ form.description }}<br>
+    {{ form.start_time.label }} {{ form.start_time }}<br>
+    {{ form.end_time.label }} {{ form.end_time }}<br>
+    {{ form.submit }}
+  </form>
+

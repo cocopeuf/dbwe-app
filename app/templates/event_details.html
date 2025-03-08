@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Veranstaltungsdetail</h2>
+  <p>Veranstaltungstitel: {{ event.title }}</p>
+  <p>Datum: {{ event.start_time.strftime('%Y-%m-%d') }}</p>
+
+  <!-- Verlinkung zu einem zugeordneten Menüvorschlag -->
+  {% if event.menu_plan %}
+    <p>Menüvorschlag:
+      <a href="{{ url_for('main.menu_plan_detail', id=event.menu_plan.id) }}">
+        {{ event.menu_plan.title }}
+      </a>
+    </p>
+  {% endif %}
+{% endblock %}
+

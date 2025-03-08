@@ -1,0 +1,9 @@
+quelle/
+__pycache__/
+app.db
+venv
+kochrezept
+migrations
+microblog.log*
+
+README.md
