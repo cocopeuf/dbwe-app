@@ -314,6 +314,20 @@ def comment_event(event_id):
         flash(_('Failed to post comment.'))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+@bp.route('/comment/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment(comment_id):
+    comment = db.session.get(Comment, comment_id)
+    if comment is None or comment.user != current_user:
+        flash(_('You are not allowed to delete this comment.'))
+        # Redirect back to the event detail page
+        return redirect(url_for('main.dinner_event_detail', event_id=comment.event_id if comment else 0))
+    event_id = comment.event_id
+    db.session.delete(comment)
+    db.session.commit()
+    flash(_('Your comment has been deleted.'))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
 @bp.route('/dinner_event/<int:event_id>/invite/<identifier>', methods=['POST'])
 @login_required
 def invite_to_dinner_event(event_id, identifier):
