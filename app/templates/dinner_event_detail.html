@@ -5,9 +5,15 @@
   <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
   <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Menu') }}</a></p>
   <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
+  
+  {% if user_rsvp %}
+    <p><strong>{{ _('Your RSVP:') }} {{ user_rsvp.status|capitalize }}</strong></p>
+  {% endif %}
+  
   {% if current_user == event.creator %}
     <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-secondary">{{ _('Edit') }}</a>
   {% endif %}
+  
   <h3>{{ _('Invited Users') }}</h3>
   <ul>
     {% for user in event.invited %}
@@ -57,5 +63,28 @@
         });
       }
     </script>
+  {% endif %}
+
+  {% if current_user != event.creator %}
+    <form action="{{ url_for('main.rsvp_dinner_event', event_id=event.id) }}" method="post" class="mt-3">
+      <div class="mb-3">
+        <label>{{ _('RSVP') }}</label>
+        <select name="rsvp" class="form-control">
+          <option value="accepted" {% if user_rsvp and user_rsvp.status == 'accepted' %}selected{% endif %}>
+            {{ _('Accept') }}
+          </option>
+          <option value="declined" {% if user_rsvp and user_rsvp.status == 'declined' %}selected{% endif %}>
+            {{ _('Decline') }}
+          </option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-success">
+        {% if user_rsvp %}
+          {{ _('Update RSVP') }}
+        {% else %}
+          {{ _('Submit RSVP') }}
+        {% endif %}
+      </button>
+    </form>
   {% endif %}
 {% endblock %}
