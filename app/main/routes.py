@@ -349,7 +349,7 @@ def invite_to_dinner_event(event_id, identifier):
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
-@bp.route('/dinner_event/<int:event_id>/uninvite/<identifier>', methods=['POST'])
+@bp.route('/dinner_event/<int:event_id>/uninvite/<identifier>', methods=['POST'], endpoint='uninvite_to_dinner_event')
 @login_required
 def uninvite_to_dinner_event(event_id, identifier):
     event = db.session.get(DinnerEvent, event_id)
