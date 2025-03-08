@@ -1,0 +1,30 @@
+
+{% extends "base.html" %}
+{% block content %}
+  <h1>{{ _('Explore') }}</h1>
+  <h2>{{ _('Upcoming Events') }}</h2>
+  <ul class="list-group mb-3">
+    {% for event in upcoming %}
+      <li class="list-group-item">
+        <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+          {{ event.title }} - {{ event.event_date.strftime('%Y-%m-%d') }}
+        </a>
+      </li>
+    {% else %}
+      <li class="list-group-item">{{ _('No upcoming events.') }}</li>
+    {% endfor %}
+  </ul>
+
+  <h2>{{ _('Previous Events') }}</h2>
+  <ul class="list-group">
+    {% for event in previous %}
+      <li class="list-group-item">
+        <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+          {{ event.title }} - {{ event.event_date.strftime('%Y-%m-%d') }}
+        </a>
+      </li>
+    {% else %}
+      <li class="list-group-item">{{ _('No previous events.') }}</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

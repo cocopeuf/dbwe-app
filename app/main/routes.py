@@ -55,18 +55,15 @@ def index():
 @bp.route('/explore')
 @login_required
 def explore():
-    page = request.args.get('page', 1, type=int)
-    per_page = current_app.config.get('POSTS_PER_PAGE', 10)
-    query = sa.select(Post).order_by(Post.timestamp.desc())
-    total = db.session.scalar(sa.select(sa.func.count()).select_from(Post))
-    posts = db.session.scalars(
-        query.offset((page - 1) * per_page).limit(per_page)
+    from datetime import datetime
+    now = datetime.now()
+    upcoming = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date >= now).order_by(DinnerEvent.event_date.asc())
     ).all()
-    next_url = url_for('main.explore', page=page + 1) if page * per_page < total else None
-    prev_url = url_for('main.explore', page=page - 1) if page > 1 else None
-    return render_template('index.html', title=_('Explore'),
-                           posts=posts, next_url=next_url,
-                           prev_url=prev_url)
+    previous = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date < now).order_by(DinnerEvent.event_date.desc())
+    ).all()
+    return render_template('explore.html', title=_('Explore'), upcoming=upcoming, previous=previous)
 
 
 @bp.route('/user/<username>')
@@ -251,7 +248,7 @@ def create_dinner_event():
             title=form.title.data,
             description=form.description.data,
             menu_url=form.menu_url.data,
-            date=form.date.data,  # assign event date
+            event_date=form.date.data,  # assign event_date
             creator=current_user
         )
         db.session.add(event)
@@ -339,7 +336,7 @@ def edit_dinner_event(event_id):
         event.title = form.title.data
         event.description = form.description.data
         event.menu_url = form.menu_url.data
-        event.date = form.date.data  # update event date
+        event.event_date = form.date.data  # update event_date
         # Process new invitations if any
         if form.invite.data:
             invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
@@ -357,7 +354,6 @@ def edit_dinner_event(event_id):
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
     return render_template('edit_dinner_event.html', title=_('Edit Dinner Event'), form=form, event=event)
 
-# New route: Message Board for Upcoming Events
 @bp.route('/upcoming_events')
 @login_required
 def upcoming_events():
