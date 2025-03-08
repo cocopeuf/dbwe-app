@@ -3,20 +3,20 @@
 {% block content %}
     
     <!-- New Event History Section -->
-    <h1 class="mt-5">{{ _('Event History') }}</h2>
+    <h1 class="mt-5">{{ _('Event History') }}</h1>
     {% if history %}
       <ul class="list-group">
          {% for entry in history %}
           <li class="list-group-item">
              {{ entry.timestamp | datetimeformat }} -
              {% if entry.name == 'event_created' %}
-                {{ _('Created event: ') }} {{ entry.get_data().event_title }}
+                {{ _('Created event: ') }} {{ entry.get_data()['event_title'] }}
              {% elif entry.name == 'dinner_event_invite' %}
-                {{ _('Invited to event: ') }} {{ entry.get_data().event_title }}
+                {{ _('Invited to event: ') }} {{ entry.get_data()['event_title'] }}
              {% elif entry.name == 'rsvp_updated' %}
-                {{ _('RSVP updated for event: ') }} {{ entry.get_data().event_title }} - {{ entry.get_data().status }}
+                {{ _('RSVP updated for event: ') }} {{ entry.get_data()['event_title'] }} - {{ entry.get_data()['status'] }}
              {% elif entry.name == 'uninvited' %}
-                {{ _('Uninvited from event: ') }} {{ entry.get_data().event_title }}
+                {{ _('Uninvited from event: ') }} {{ entry.get_data()['event_title'] }}
              {% endif %}
           </li>
          {% endfor %}
