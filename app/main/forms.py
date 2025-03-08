@@ -61,3 +61,8 @@ class DinnerEventForm(FlaskForm):
     date = DateField(_l('Event Date'), format='%Y-%m-%d', validators=[DataRequired()])
     invite = StringField(_l('Invite Users (comma separated)'))
     submit = SubmitField(_l('Create Dinner Event'))
+
+
+class CommentForm(FlaskForm):
+    body = TextAreaField(_l('Comment'), validators=[DataRequired(), Length(min=1, max=500)])
+    submit = SubmitField(_l('Post Comment'))
