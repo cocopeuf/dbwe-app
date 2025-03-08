@@ -1,22 +1,26 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>{{ _('Messages') }}</h1>
-    {% for post in messages %}
-        {% include '_post.html' %}
-    {% endfor %}
-    <nav aria-label="Post navigation">
-        <ul class="pagination">
-            <li class="page-item{% if not prev_url %} disabled{% endif %}">
-                <a class="page-link" href="#">
-                    <span aria-hidden="true">&larr;</span> {{ _('Newer messages') }}
-                </a>
-            </li>
-            <li class="page-item{% if not next_url %} disabled{% endif %}">
-                <a class="page-link" href="#">
-                    {{ _('Older messages') }} <span aria-hidden="true">&rarr;</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
+  <!-- New Event History Section -->
+  <h1 class="mt-5">{{ _('Event History') }}</h1>
+  {% if history %}
+    <ul class="list-group">
+      {% for entry in history %}
+        <li class="list-group-item">
+          {{ entry.timestamp | datetimeformat }} -
+          {% if entry.name == 'event_created' %}
+            {{ _('Created event: ') }} {{ entry.get_data()['event_title'] }}
+          {% elif entry.name == 'dinner_event_invite' %}
+            {{ _('Invited to event: ') }} {{ entry.get_data()['event_title'] }}
+          {% elif entry.name == 'rsvp_updated' %}
+            {{ _('RSVP updated for event: ') }} {{ entry.get_data()['event_title'] }} - {{ entry.get_data()['status'] }}
+          {% elif entry.name == 'uninvited' %}
+            {{ _('Uninvited from event: ') }} {{ entry.get_data()['event_title'] }}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>{{ _('No event history found.') }}</p>
+  {% endif %}
 {% endblock %}

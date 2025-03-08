@@ -124,8 +124,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         sa.String(32), index=True, unique=True)
     token_expiration: so.Mapped[Optional[datetime]]
 
-    posts: so.WriteOnlyMapped['Post'] = so.relationship(
-        back_populates='author')
     following: so.WriteOnlyMapped['User'] = so.relationship(
         secondary=followers, primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
@@ -134,10 +132,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         secondary=followers, primaryjoin=(followers.c.followed_id == id),
         secondaryjoin=(followers.c.follower_id == id),
         back_populates='following')
-    messages_sent: so.WriteOnlyMapped['Message'] = so.relationship(
-        foreign_keys='Message.sender_id', back_populates='author')
-    messages_received: so.WriteOnlyMapped['Message'] = so.relationship(
-        foreign_keys='Message.recipient_id', back_populates='recipient')
     notifications: so.WriteOnlyMapped['Notification'] = so.relationship(
         back_populates='user')
     tasks: so.WriteOnlyMapped['Task'] = so.relationship(back_populates='user')
@@ -178,21 +172,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             self.following.select().subquery())
         return db.session.scalar(query)
 
-    def following_posts(self):
-        Author = so.aliased(User)
-        Follower = so.aliased(User)
-        return (
-            sa.select(Post)
-            .join(Post.author.of_type(Author))
-            .join(Author.followers.of_type(Follower), isouter=True)
-            .where(sa.or_(
-                Follower.id == self.id,
-                Author.id == self.id,
-            ))
-            .group_by(Post)
-            .order_by(Post.timestamp.desc())
-        )
-
     def get_reset_password_token(self, expires_in=600):
         return jwt.encode(
             {'reset_password': self.id, 'exp': time() + expires_in},
@@ -215,8 +194,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             query.subquery()))
 
     def add_notification(self, name, data):
-        db.session.execute(self.notifications.delete().where(
-            Notification.name == name))
         n = Notification(name=name, payload_json=json.dumps(data), user=self)
         db.session.add(n)
         return n
@@ -238,11 +215,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
                                           Task.complete == False)
         return db.session.scalar(query)
 
-    def posts_count(self):
-        query = sa.select(sa.func.count()).select_from(
-            self.posts.select().subquery())
-        return db.session.scalar(query)
-
     def to_dict(self, include_email=False):
         data = {
             'id': self.id,
@@ -250,7 +222,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             'last_seen': self.last_seen.replace(
                 tzinfo=timezone.utc).isoformat(),
             'about_me': self.about_me,
-            'post_count': self.posts_count(),
             'follower_count': self.followers_count(),
             'following_count': self.following_count(),
             '_links': {
@@ -297,43 +268,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
 @login.user_loader
 def load_user(id):
     return db.session.get(User, int(id))
-
-
-class Post(SearchableMixin, db.Model):
-    __searchable__ = ['body']
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(
-        index=True, default=lambda: datetime.now(timezone.utc))
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-                                               index=True)
-    language: so.Mapped[Optional[str]] = so.mapped_column(sa.String(5))
-
-    author: so.Mapped[User] = so.relationship(back_populates='posts')
-
-    def __repr__(self):
-        return '<Post {}>'.format(self.body)
-
-
-class Message(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    sender_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-                                                 index=True)
-    recipient_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-                                                    index=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(
-        index=True, default=lambda: datetime.now(timezone.utc))
-
-    author: so.Mapped[User] = so.relationship(
-        foreign_keys='Message.sender_id',
-        back_populates='messages_sent')
-    recipient: so.Mapped[User] = so.relationship(
-        foreign_keys='Message.recipient_id',
-        back_populates='messages_received')
-
-    def __repr__(self):
-        return '<Message {}>'.format(self.body)
 
 
 class Notification(db.Model):
@@ -424,3 +358,16 @@ class Comment(db.Model):
 
     def __repr__(self):
         return f'<Comment {self.body[:20]}>'
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    body = db.Column(db.String(140))
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
+    # Relationships (adjust backrefs as needed)
+    author = db.relationship('User', foreign_keys=[sender_id], backref='messages_sent')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='messages_received')
+    
+    def __repr__(self):
+        return f'<Message {self.body[:20]}>'
