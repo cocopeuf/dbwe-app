@@ -101,6 +101,14 @@ dinner_event_invites = sa.Table(
     sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
 )
 
+class DinnerEventRsvp(db.Model):
+    __tablename__ = 'dinner_event_rsvps'
+    dinner_event_id = db.Column(db.Integer, db.ForeignKey('dinnerevent.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    status = db.Column(sa.String(16), nullable=False, server_default='declined')  # 'accepted' or 'declined'
+    user = db.relationship('User', back_populates='dinner_event_rsvps')
+    event = db.relationship('DinnerEvent', back_populates='rsvps')
+
 class User(PaginatedAPIMixin, UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
@@ -133,6 +141,7 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
     notifications: so.WriteOnlyMapped['Notification'] = so.relationship(
         back_populates='user')
     tasks: so.WriteOnlyMapped['Task'] = so.relationship(back_populates='user')
+    dinner_event_rsvps = db.relationship('DinnerEventRsvp', back_populates='user')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -379,7 +388,18 @@ class DinnerEvent(db.Model):
         secondaryjoin="dinner_event_invites.c.user_id == User.id",
         backref='invited_dinner_events'
     )
+    # New: relationship for RSVPs
+    rsvps = db.relationship('DinnerEventRsvp', back_populates='event')
 
     def invite_user(self, user):
         if user not in self.invited:
             self.invited.append(user)
+
+    # New: RSVP helper method
+    def rsvp(self, user, status):
+        existing = next((r for r in self.rsvps if r.user_id == user.id), None)
+        if existing:
+            existing.status = status
+        else:
+            new_rsvp = DinnerEventRsvp(user=user, status=status)
+            self.rsvps.append(new_rsvp)

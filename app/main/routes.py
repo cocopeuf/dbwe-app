@@ -280,7 +280,8 @@ def create_dinner_event():
 def dinner_event_detail(event_id):
     q = sa.select(DinnerEvent).options(
             joinedload(DinnerEvent.creator),
-            joinedload(DinnerEvent.invited)
+            joinedload(DinnerEvent.invited),
+            joinedload(DinnerEvent.rsvps)
         ).where(DinnerEvent.id == event_id)
     event = db.session.scalar(q)
     if event is None:
@@ -290,7 +291,9 @@ def dinner_event_detail(event_id):
     if event.creator != current_user and current_user not in event.invited:
         flash(_('You are not allowed to view this dinner event.'))
         return redirect(url_for('main.dinner_events_list'))
-    return render_template('dinner_event_detail.html', event=event)
+    # Find the RSVP record for the current user, if any
+    user_rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
+    return render_template('dinner_event_detail.html', event=event, user_rsvp=user_rsvp)
 
 @bp.route('/dinner_event/<int:event_id>/invite/<identifier>', methods=['POST'])
 @login_required
@@ -366,3 +369,23 @@ def upcoming_events():
     q = sa.select(DinnerEvent).where(DinnerEvent.date >= datetime.now()).order_by(DinnerEvent.date.asc())
     events = db.session.scalars(q).all()
     return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
+
+@bp.route('/dinner_event/<int:event_id>/rsvp', methods=['POST'])
+@login_required
+def rsvp_dinner_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None:
+        flash(_('Dinner event not found.'))
+        return redirect(url_for('main.index'))
+    # Allow RSVP if current_user is invited or is the creator
+    if current_user not in event.invited and event.creator != current_user:
+        flash(_('You are not invited to RSVP this dinner event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    rsvp_choice = request.form.get('rsvp')
+    if rsvp_choice not in ['accepted', 'declined']:
+        flash(_('Invalid RSVP choice.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.rsvp(current_user, rsvp_choice)
+    db.session.commit()
+    flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
