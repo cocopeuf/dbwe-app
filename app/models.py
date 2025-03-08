@@ -388,8 +388,9 @@ class DinnerEvent(db.Model):
         secondaryjoin="dinner_event_invites.c.user_id == User.id",
         backref='invited_dinner_events'
     )
-    # New: relationship for RSVPs
     rsvps = db.relationship('DinnerEventRsvp', back_populates='event')
+    # New: comments relationship
+    comments = db.relationship('Comment', back_populates='event', cascade='all, delete-orphan')
 
     def invite_user(self, user):
         if user not in self.invited:
@@ -403,3 +404,15 @@ class DinnerEvent(db.Model):
         else:
             new_rsvp = DinnerEventRsvp(user=user, status=status)
             self.rsvps.append(new_rsvp)
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(sa.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    user_id = db.Column(db.Integer, sa.ForeignKey('user.id'), nullable=False)
+    event_id = db.Column(db.Integer, sa.ForeignKey('dinnerevent.id'), nullable=False)
+    user = db.relationship('User', backref='comments')
+    event = db.relationship('DinnerEvent', back_populates='comments')
+
+    def __repr__(self):
+        return f'<Comment {self.body[:20]}>'

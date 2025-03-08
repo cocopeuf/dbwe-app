@@ -7,8 +7,8 @@ import sqlalchemy as sa
 from langdetect import detect, LangDetectException
 from app import db
 from app.main.forms import EditProfileForm, EmptyForm, PostForm, SearchForm, \
-    MessageForm, DinnerEventForm  # import the new form
-from app.models import User, Post, Message, Notification, DinnerEvent  # import DinnerEvent
+    MessageForm, DinnerEventForm, CommentForm  # add import with existing form imports
+from app.models import User, Post, Message, Notification, DinnerEvent, Comment  # add import for Comment
 from app.translate import translate
 from app.main import bp
 from sqlalchemy.orm import joinedload
@@ -281,7 +281,8 @@ def dinner_event_detail(event_id):
     q = sa.select(DinnerEvent).options(
             joinedload(DinnerEvent.creator),
             joinedload(DinnerEvent.invited),
-            joinedload(DinnerEvent.rsvps)
+            joinedload(DinnerEvent.rsvps),
+            joinedload(DinnerEvent.comments).joinedload(Comment.user)
         ).where(DinnerEvent.id == event_id)
     event = db.session.scalar(q)
     if event is None:
@@ -293,7 +294,25 @@ def dinner_event_detail(event_id):
         return redirect(url_for('main.dinner_events_list'))
     # Find the RSVP record for the current user, if any
     user_rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
-    return render_template('dinner_event_detail.html', event=event, user_rsvp=user_rsvp)
+    comment_form = CommentForm()
+    return render_template('dinner_event_detail.html', event=event, user_rsvp=user_rsvp, comment_form=comment_form)
+
+@bp.route('/dinner_event/<int:event_id>/comment', methods=['POST'])
+@login_required
+def comment_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None or (current_user not in event.invited and event.creator != current_user):
+        flash(_('You are not allowed to comment on this dinner event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    form = CommentForm()
+    if form.validate_on_submit():
+        comment = Comment(body=form.body.data, user=current_user, event=event)
+        db.session.add(comment)
+        db.session.commit()
+        flash(_('Your comment has been posted.'))
+    else:
+        flash(_('Failed to post comment.'))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
 @bp.route('/dinner_event/<int:event_id>/invite/<identifier>', methods=['POST'])
 @login_required

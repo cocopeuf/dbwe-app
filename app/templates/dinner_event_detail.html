@@ -87,4 +87,28 @@
       </button>
     </form>
   {% endif %}
+
+  {% if event.comments %}
+    <h3>{{ _('Comments') }}</h3>
+    <ul>
+      {% for comment in event.comments %}
+        <li>
+          <strong>{{ comment.user.username }}</strong> ({{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}):
+          {{ comment.body }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <h3>{{ _('No comments yet.') }}</h3>
+  {% endif %}
+
+  {% if current_user.is_authenticated %}
+    <h3>{{ _('Add a Comment') }}</h3>
+    <form action="{{ url_for('main.add_comment', event_id=event.id) }}" method="post">
+      <div class="mb-3">
+        <textarea name="body" class="form-control" rows="3" placeholder="{{ _('Enter your comment') }}"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">{{ _('Submit Comment') }}</button>
+    </form>
+  {% endif %}
 {% endblock %}
