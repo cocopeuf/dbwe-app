@@ -273,7 +273,8 @@ def create_dinner_event():
         # New: Add event_created notification for the creator
         current_user.add_notification('event_created', {
             'message': _('You created the event: %(event_title)s', event_title=event.title),
-            'event_id': event.id
+            'event_id': event.id,
+            'event_title': event.title
         })
         db.session.commit()
         flash(_('Dinner event created successfully!'))
@@ -347,9 +348,11 @@ def invite_to_dinner_event(event_id, identifier):
         flash(_('User %(identifier)s not found.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.invite_user(user)
-    user.add_notification('dinner_event_invite', 
-        {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
-         'event_id': event.id})
+    user.add_notification('dinner_event_invite', {
+        'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
+        'event_id': event.id,
+        'event_title': event.title
+    })
     db.session.commit()
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
@@ -368,10 +371,10 @@ def uninvite_to_dinner_event(event_id, identifier):
         flash(_('User %(identifier)s is not invited.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.uninvite_user(user)
-    # New: Add uninvited notification for the affected user
     user.add_notification('uninvited', {
         'message': _('You have been uninvited from the event: %(event_title)s', event_title=event.title),
-        'event_id': event.id
+        'event_id': event.id,
+        'event_title': event.title
     })
     # Clean up invitation notifications for this event
     for notification in list(user.notifications):
@@ -464,10 +467,10 @@ def rsvp_dinner_event(event_id):
         flash(_('Invalid RSVP choice.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.rsvp(current_user, rsvp_choice)
-    # New: Add rsvp_updated notification for current_user
     current_user.add_notification('rsvp_updated', {
         'message': _('Your RSVP for event: %(event_title)s has been updated', event_title=event.title),
         'event_id': event.id,
+        'event_title': event.title,
         'status': rsvp_choice
     })
     db.session.commit()
