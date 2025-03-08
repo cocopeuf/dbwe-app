@@ -2,59 +2,87 @@
 {% block content %}
   <h1>{{ event.title }}</h1>
   <p>{{ event.description }}</p>
-  <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Menu') }}</a></p>
   <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
+  <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Menu') }}</a></p>
+  <p>{{ _('Event Date:') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}</p>
+  
+  {% if user_rsvp %}
+    <p><strong>{{ _('Your RSVP:') }} {{ user_rsvp.status|capitalize }}</strong></p>
+  {% endif %}
+  
   {% if current_user == event.creator %}
     <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-secondary">{{ _('Edit') }}</a>
   {% endif %}
+  
   <h3>{{ _('Invited Users') }}</h3>
   <ul>
     {% for user in event.invited %}
-      <li>{{ user.username }}</li>
+      <li>
+        {{ user.username }}
+        {% if current_user == event.creator %}
+          <form action="{{ url_for('main.uninvite_to_dinner_event', event_id=event.id, identifier=user.username) }}" method="post" style="display:inline;">
+            {{ comment_form.hidden_tag() }}
+            <button type="submit" class="btn btn-link btn-sm text-danger">{{ _('Uninvite') }}</button>
+          </form>
+        {% endif %}
+      </li>
     {% else %}
       <li>{{ _('No invitations yet.') }}</li>
     {% endfor %}
   </ul>
 
-  {% if current_user == event.creator %}
-    <h3>{{ _('Invite a User') }}</h3>
-    <div class="mb-3">
-      <input type="text" id="invite_username" class="form-control" placeholder="{{ _('Enter username') }}">
-    </div>
-    <button type="button" class="btn btn-primary" onclick="inviteUser('{{ event.id }}')">
-      {{ _('Invite') }}
-    </button>
-    <script>
-      function inviteUser(eventId) {
-        var username = document.getElementById('invite_username').value.trim();
-        if (!username) {
-          alert('{{ _("Please enter a username.") }}');
-          return;
-        }
-        fetch(`/dinner_event/${eventId}/invite/${username}`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json; charset=utf-8'}
-        })
-        .then(response => {
-          if (response.redirected) {
-            location.href = response.url;
-          } else {
-            return response.json();
-          }
-        })
-        .then(data => {
-          if (data && data.success) {
-            alert('{{ _("User invited successfully!") }}');
-            location.reload();
-          } else {
-            alert('{{ _("Failed to invite user.") }}');
-          }
-        })
-        .catch(error => {
-          console.error(error);
-          alert('{{ _("Error inviting user.") }}');
-        });
-      }
-    </script>
+  {% if current_user != event.creator %}
+    <form action="{{ url_for('main.rsvp_dinner_event', event_id=event.id) }}" method="post" class="mt-3">
+      <div class="mb-3">
+        <label>{{ _('RSVP') }}</label>
+        <select name="rsvp" class="form-control">
+          <option value="accepted" {% if user_rsvp and user_rsvp.status == 'accepted' %}selected{% endif %}>
+            {{ _('Accept') }}
+          </option>
+          <option value="declined" {% if user_rsvp and user_rsvp.status == 'declined' %}selected{% endif %}>
+            {{ _('Decline') }}
+          </option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-success">
+        {% if user_rsvp %}
+          {{ _('Update RSVP') }}
+        {% else %}
+          {{ _('Submit RSVP') }}
+        {% endif %}
+      </button>
+    </form>
+  {% endif %}
+
+  {% if event.comments %}
+    <h4>{{ _('Comments') }}</h4>
+    <ul>
+      {% for comment in event.comments %}
+        <li>
+          <strong>{{ comment.user.username }}</strong> ({{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}):
+          {{ comment.body }}
+          {% if comment.user == current_user %}
+            <form action="{{ url_for('main.delete_comment', comment_id=comment.id) }}" method="post" style="display:inline;">
+              {{ comment_form.hidden_tag() }}
+              <button type="submit" class="btn btn-link btn-sm text-danger">{{ _('Delete') }}</button>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <h4>{{ _('No comments yet.') }}</h4>
+  {% endif %}
+
+  {% if current_user.is_authenticated %}
+    <h3>{{ _('Add a Comment') }}</h3>
+    <form action="{{ url_for('main.comment_event', event_id=event.id) }}" method="post">
+      {{ comment_form.hidden_tag() }}
+      <div class="mb-3">
+        {{ comment_form.body.label }} 
+        {{ comment_form.body(class="form-control", placeholder=_('Enter your comment')) }}
+      </div>
+      {{ comment_form.submit(class="btn btn-primary") }}
+    </form>
   {% endif %}
 {% endblock %}

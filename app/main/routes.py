@@ -7,8 +7,8 @@ import sqlalchemy as sa
 from langdetect import detect, LangDetectException
 from app import db
 from app.main.forms import EditProfileForm, EmptyForm, PostForm, SearchForm, \
-    MessageForm, DinnerEventForm  # import the new form
-from app.models import User, Post, Message, Notification, DinnerEvent  # import DinnerEvent
+    MessageForm, DinnerEventForm, CommentForm  # add import with existing form imports
+from app.models import User, Post, Message, Notification, DinnerEvent, Comment  # add import for Comment
 from app.translate import translate
 from app.main import bp
 from sqlalchemy.orm import joinedload
@@ -43,30 +43,31 @@ def index():
     posts = db.paginate(current_user.following_posts(), page=page,
                         per_page=current_app.config['POSTS_PER_PAGE'],
                         error_out=False)
+    # New: Fetch up to 3 upcoming dinner events
+    upcoming_events = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date >= datetime.now()).order_by(DinnerEvent.event_date.asc()).limit(3)
+    ).all()
     next_url = url_for('main.index', page=posts.next_num) \
         if posts.has_next else None
     prev_url = url_for('main.index', page=posts.prev_num) \
         if posts.has_prev else None
     return render_template('index.html', title=_('Home'), form=form,
                            posts=posts.items, next_url=next_url,
-                           prev_url=prev_url)
+                           prev_url=prev_url, upcoming_events=upcoming_events)
 
 
 @bp.route('/explore')
 @login_required
 def explore():
-    page = request.args.get('page', 1, type=int)
-    per_page = current_app.config.get('POSTS_PER_PAGE', 10)
-    query = sa.select(Post).order_by(Post.timestamp.desc())
-    total = db.session.scalar(sa.select(sa.func.count()).select_from(Post))
-    posts = db.session.scalars(
-        query.offset((page - 1) * per_page).limit(per_page)
+    from datetime import datetime
+    now = datetime.now()
+    upcoming = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date >= now).order_by(DinnerEvent.event_date.asc())
     ).all()
-    next_url = url_for('main.explore', page=page + 1) if page * per_page < total else None
-    prev_url = url_for('main.explore', page=page - 1) if page > 1 else None
-    return render_template('index.html', title=_('Explore'),
-                           posts=posts, next_url=next_url,
-                           prev_url=prev_url)
+    previous = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date < now).order_by(DinnerEvent.event_date.desc())
+    ).all()
+    return render_template('explore.html', title=_('Explore'), upcoming=upcoming, previous=previous)
 
 
 @bp.route('/user/<username>')
@@ -251,7 +252,7 @@ def create_dinner_event():
             title=form.title.data,
             description=form.description.data,
             menu_url=form.menu_url.data,
-            date=form.date.data,  # assign event date
+            event_date=form.date.data,  # assign event_date
             creator=current_user
         )
         db.session.add(event)
@@ -279,7 +280,9 @@ def create_dinner_event():
 def dinner_event_detail(event_id):
     q = sa.select(DinnerEvent).options(
             joinedload(DinnerEvent.creator),
-            joinedload(DinnerEvent.invited)
+            joinedload(DinnerEvent.invited),
+            joinedload(DinnerEvent.rsvps),
+            joinedload(DinnerEvent.comments).joinedload(Comment.user)
         ).where(DinnerEvent.id == event_id)
     event = db.session.scalar(q)
     if event is None:
@@ -289,7 +292,41 @@ def dinner_event_detail(event_id):
     if event.creator != current_user and current_user not in event.invited:
         flash(_('You are not allowed to view this dinner event.'))
         return redirect(url_for('main.dinner_events_list'))
-    return render_template('dinner_event_detail.html', event=event)
+    # Find the RSVP record for the current user, if any
+    user_rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
+    comment_form = CommentForm()
+    return render_template('dinner_event_detail.html', event=event, user_rsvp=user_rsvp, comment_form=comment_form)
+
+@bp.route('/dinner_event/<int:event_id>/comment', methods=['POST'])
+@login_required
+def comment_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None or (current_user not in event.invited and event.creator != current_user):
+        flash(_('You are not allowed to comment on this dinner event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    form = CommentForm()
+    if form.validate_on_submit():
+        comment = Comment(body=form.body.data, user=current_user, event=event)
+        db.session.add(comment)
+        db.session.commit()
+        flash(_('Your comment has been posted.'))
+    else:
+        flash(_('Failed to post comment.'))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/comment/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment(comment_id):
+    comment = db.session.get(Comment, comment_id)
+    if comment is None or comment.user != current_user:
+        flash(_('You are not allowed to delete this comment.'))
+        # Redirect back to the event detail page
+        return redirect(url_for('main.dinner_event_detail', event_id=comment.event_id if comment else 0))
+    event_id = comment.event_id
+    db.session.delete(comment)
+    db.session.commit()
+    flash(_('Your comment has been deleted.'))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
 @bp.route('/dinner_event/<int:event_id>/invite/<identifier>', methods=['POST'])
 @login_required
@@ -310,6 +347,24 @@ def invite_to_dinner_event(event_id, identifier):
          'event_id': event.id})
     db.session.commit()
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/uninvite/<identifier>', methods=['POST'], endpoint='uninvite_to_dinner_event')
+@login_required
+def uninvite_to_dinner_event(event_id, identifier):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None or event.creator != current_user:
+        flash(_('You are not allowed to uninvite users from this dinner event.'))
+        return redirect(url_for('main.index'))
+    user = db.session.scalar(sa.select(User).where(
+        sa.or_(User.username == identifier, User.email == identifier)
+    ))
+    if user is None or user not in event.invited:
+        flash(_('User %(identifier)s is not invited.', identifier=identifier))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.uninvite_user(user)
+    db.session.commit()
+    flash(_('User %(identifier)s has been uninvited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
 @bp.route('/dinner_events')
@@ -335,11 +390,14 @@ def edit_dinner_event(event_id):
         flash(_('You are not allowed to edit this dinner event.'))
         return redirect(url_for('main.dinner_events_list'))
     form = DinnerEventForm(obj=event)
+    if request.method == 'GET':
+        # Ensure the date field shows the current event date (as a date object)
+        form.date.data = event.event_date.date()
     if form.validate_on_submit():
         event.title = form.title.data
         event.description = form.description.data
         event.menu_url = form.menu_url.data
-        event.date = form.date.data  # update event date
+        event.event_date = form.date.data  # update event_date
         # Process new invitations if any
         if form.invite.data:
             invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
@@ -357,12 +415,38 @@ def edit_dinner_event(event_id):
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
     return render_template('edit_dinner_event.html', title=_('Edit Dinner Event'), form=form, event=event)
 
-# New route: Message Board for Upcoming Events
 @bp.route('/upcoming_events')
 @login_required
 def upcoming_events():
     from datetime import datetime
     # Select events with date in the future
-    q = sa.select(DinnerEvent).where(DinnerEvent.date >= datetime.now()).order_by(DinnerEvent.date.asc())
-    events = db.session.scalars(q).all()
+    all_events = db.session.scalars(
+        sa.select(DinnerEvent).where(DinnerEvent.event_date >= datetime.now()).order_by(DinnerEvent.event_date.asc())
+    ).all()
+    events = []
+    for event in all_events:
+        rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
+        if rsvp and rsvp.status == 'declined':
+            continue
+        events.append(event)
     return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
+
+@bp.route('/dinner_event/<int:event_id>/rsvp', methods=['POST'])
+@login_required
+def rsvp_dinner_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None:
+        flash(_('Dinner event not found.'))
+        return redirect(url_for('main.index'))
+    # Allow RSVP if current_user is invited or is the creator
+    if current_user not in event.invited and event.creator != current_user:
+        flash(_('You are not invited to RSVP this dinner event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    rsvp_choice = request.form.get('rsvp')
+    if rsvp_choice not in ['accepted', 'declined']:
+        flash(_('Invalid RSVP choice.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.rsvp(current_user, rsvp_choice)
+    db.session.commit()
+    flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
