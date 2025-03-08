@@ -104,7 +104,7 @@
 
   {% if current_user.is_authenticated %}
     <h3>{{ _('Add a Comment') }}</h3>
-    <form action="{{ url_for('main.add_comment', event_id=event.id) }}" method="post">
+    <form action="{{ url_for('main.comment_event', event_id=event.id) }}" method="post">
       <div class="mb-3">
         <textarea name="body" class="form-control" rows="3" placeholder="{{ _('Enter your comment') }}"></textarea>
       </div>
