@@ -21,7 +21,7 @@
             {% set _ = invited_events.append(event) %}
          {% elif rsvp is not defined or rsvp.status == 'no_response' %}
             {% set _ = need_rsvp_events.append(event) %}
-         {% else %}
+         {% elif rsvp.status == 'accepted' %}
             {% set _ = invited_events.append(event) %}
          {% endif %}
       {% endif %}
