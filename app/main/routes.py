@@ -414,10 +414,12 @@ def upcoming_events():
     ).all()
     events = []
     for event in all_events:
-        rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
-        if rsvp and rsvp.status == 'declined':
-            continue
-        events.append(event)
+        if event.is_public and current_user in event.invited:
+            events.append(event)
+        else:
+            rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
+            if rsvp and rsvp.status != 'declined':
+                events.append(event)
     return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
 
 # --- Dinner Event Opt-In Routes ---
