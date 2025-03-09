@@ -372,6 +372,20 @@ def edit_dinner_event(event_id):
         event.menu_url = form.menu_url.data
         event.event_date = form.date.data  # This will be a datetime object due to the validator
         event.is_public = form.is_public.data
+        # Process invite field if any
+        if form.invite.data and not form.is_public.data:
+            invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
+            for identifier in invitees:
+                # Search by username or email
+                user = db.session.scalar(sa.select(User).where(
+                    sa.or_(User.username == identifier, User.email == identifier)
+                ))
+                if user is not None and user not in event.invited:
+                    event.invite_user(user)
+                    # Add notification for invite
+                    user.add_notification('dinner_event_invite', 
+                        {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
+                         'event_id': event.id})
         db.session.commit()
         flash(_('Dinner event updated.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))

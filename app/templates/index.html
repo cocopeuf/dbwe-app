@@ -64,6 +64,15 @@
                 </a>
                 <small class="text-muted d-block">
                   {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                  {% if current_user in event.invited %}
+                    {% set rsvp_status = 'No response' %}
+                    {% for rsvp in event.rsvps %}
+                      {% if rsvp.user_id == current_user.id %}
+                        {% set rsvp_status = rsvp.status %}
+                      {% endif %}
+                    {% endfor %}
+                    - {{ rsvp_status|capitalize }}
+                  {% endif %}
                 </small>
               </li>
             {% endfor %}
