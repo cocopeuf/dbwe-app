@@ -58,23 +58,23 @@ def explore():
 def user(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
     form = EmptyForm()
-    return render_template('user.html', user=user, form=form)
+    # Query events that are viewable by the user
+    history = db.session.scalars(
+        sa.select(DinnerEvent).where(
+            sa.or_(
+                DinnerEvent.is_public == True,
+                DinnerEvent.creator_id == user.id,
+                DinnerEvent.invited.any(User.id == user.id)
+            )
+        ).order_by(DinnerEvent.event_date.desc())
+    ).all()
+    return render_template('user.html', user=user, form=form, history=history)
 
 
 @bp.route('/user/<username>/popup')
 @login_required
 def user_popup(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
-    form = EmptyForm()
-    return render_template('user_popup.html', user=user, form=form)
-
-
-@bp.route('/edit_profile', methods=['GET', 'POST'])
-@login_required
-def edit_profile():
-    form = EditProfileForm(current_user.username)
-    if form.validate_on_submit():
-        current_user.username = form.username.data
         current_user.about_me = form.about_me.data
         db.session.commit()
         flash(_('Your changes have been saved.'))
@@ -153,24 +153,19 @@ def messages():
     current_user.add_notification('unread_message_count', 0)
     db.session.commit()
     page = request.args.get('page', 1, type=int)
-    query = current_user.messages_received.select().order_by(
-        Message.timestamp.desc())
-    messages = db.paginate(query, page=page,
-                           per_page=current_app.config['POSTS_PER_PAGE'],
-                           error_out=False)
-    next_url = url_for('main.messages', page=messages.next_num) \
-        if messages.has_next else None
-    prev_url = url_for('main.messages', page=messages.prev_num) \
-        if messages.has_prev else None
+    # Replace the query on messages_received with a sorted list.
+    messages_list = sorted(current_user.messages_received, key=lambda m: m.timestamp, reverse=True)
+    # Pagination is omitted since we’re working with a list.
+    next_url = None
+    prev_url = None
     
-    # Query event notifications (history)
     event_notif = ["event_created", "dinner_event_invite", "rsvp_updated", "uninvited"]
     history_query = current_user.notifications.select().where(
         Notification.name.in_(event_notif)
     ).order_by(Notification.timestamp.desc())
     history = list(db.session.scalars(history_query))
     
-    return render_template('messages.html', messages=messages.items,
+    return render_template('messages.html', messages=messages_list,
                            next_url=next_url, prev_url=prev_url, history=history)
 
 
