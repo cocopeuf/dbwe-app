@@ -423,12 +423,16 @@ def upcoming_events():
 @login_required
 def opt_in_event(event_id):
     event = db.session.get(DinnerEvent, event_id)
-    if event is None or not event.is_public or current_user in event.invited or current_user in event.pending_opt_ins:
+    if event is None or current_user in event.pending_opt_ins:
         flash(_('You cannot opt-in to this event.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
-    event.pending_opt_ins.append(current_user)
+    if event.is_public:
+        event.invite_user(current_user)
+        flash(_('You have been added to the event.'))
+    else:
+        event.pending_opt_ins.append(current_user)
+        flash(_('You have opted-in to the event. The creator will review your request.'))
     db.session.commit()
-    flash(_('You have opted-in to the event. The creator will review your request.'))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
 @bp.route('/dinner_event/<int:event_id>/accept_opt_in/<int:user_id>', methods=['POST'])
