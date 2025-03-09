@@ -48,7 +48,7 @@
           <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title mb-0">{{ _('Events I Created') }}</h3>
             <div class="btn-group" role="group" aria-label="Event Filters">
-              <button type="button" class="btn btn-secondary" id="upcoming-events-btn">{{ _('Upcoming') }}</button>
+              <button type="button" class="btn btn-secondary active" id="upcoming-events-btn">{{ _('Upcoming') }}</button>
               <button type="button" class="btn btn-secondary" id="previous-events-btn">{{ _('Previous') }}</button>
             </div>
           </div>
@@ -108,6 +108,12 @@
                     </a>
                     <small class="text-muted d-block">
                       {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <small class="d-block text-muted">
+                      {{ _('Created by') }} 
+                      <a href="{{ url_for('main.user', username=event.creator.username) }}">
+                        {{ event.creator.username }}
+                      </a>
                       {% set rsvp_status = 'No response' %}
                       {% for rsvp in event.rsvps %}
                         {% if rsvp.user_id == current_user.id %}
@@ -173,6 +179,12 @@
                     <small class="text-muted d-block">
                       {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                     </small>
+                    <small class="d-block text-muted">
+                      {{ _('Created by') }} 
+                      <a href="{{ url_for('main.user', username=event.creator.username) }}">
+                        {{ event.creator.username }}
+                      </a>
+                    </small>
                   </li>
                 {% endfor %}
               </ul>
@@ -192,14 +204,23 @@
   </div>
 
   <script>
-    document.getElementById('upcoming-events-btn').addEventListener('click', function() {
-      document.getElementById('upcoming-events').style.display = 'block';
-      document.getElementById('previous-events').style.display = 'none';
+    const upcomingBtn = document.getElementById('upcoming-events-btn');
+    const previousBtn = document.getElementById('previous-events-btn');
+    const upcomingSection = document.getElementById('upcoming-events');
+    const previousSection = document.getElementById('previous-events');
+
+    upcomingBtn.addEventListener('click', function() {
+      upcomingSection.style.display = 'block';
+      previousSection.style.display = 'none';
+      upcomingBtn.classList.add('active');
+      previousBtn.classList.remove('active');
     });
 
-    document.getElementById('previous-events-btn').addEventListener('click', function() {
-      document.getElementById('upcoming-events').style.display = 'none';
-      document.getElementById('previous-events').style.display = 'block';
+    previousBtn.addEventListener('click', function() {
+      upcomingSection.style.display = 'none';
+      previousSection.style.display = 'block';
+      previousBtn.classList.add('active');
+      upcomingBtn.classList.remove('active');
     });
   </script>
 {% endblock %}
