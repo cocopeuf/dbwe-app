@@ -27,8 +27,14 @@ def index():
           .order_by(DinnerEvent.event_date.asc())
           .limit(3)
     ).all()
+    created_events = db.session.scalars(
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.creator_id == current_user.id)
+          .order_by(DinnerEvent.event_date.asc())
+    ).all()
     return render_template('index.html', title=_('Home'),
-                           upcoming_events=upcoming_events)
+                           upcoming_events=upcoming_events,
+                           created_events=created_events)
 
 @bp.route('/explore')
 def explore():
