@@ -10,15 +10,36 @@
     #calendar {
       min-height: 700px;
       margin: 0 auto;
-      /* Remove extra borders so it blends with index.html styling */
       border: none;
     }
+    .legend {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+    }
+    .legend li {
+      display: inline-block;
+      margin-right: 10px;
+    }
+    .legend span {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 5px;
+    }
+    .legend .created { background-color: #007bff; }  /* blue */
+    .legend .invited { background-color: #28a745; }  /* green */
+    .legend .rsvp { background-color: #6f42c1; }  /* violet */
   </style>
-
 {% endblock %}
 {% block content %}
   <div class="container mt-4">
-    <h1 class="mb-4">{{ _('Event Calendar') }}</h1>
+    <h1 class="mb-4">{{ _('Versanstaltungskalender') }}</h1>
+    <ul class="legend">
+      <li><span class="created"></span>{{ _('Erstellte Events') }}</li>
+      <li><span class="invited"></span>{{ _('Eingeladene Events') }}</li>
+      <li><span class="rsvp"></span>{{ _('Private Events') }}</li>
+    </ul>
     <div id="calendar"></div>
   </div>
   <script type="module">

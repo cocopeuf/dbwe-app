@@ -6,10 +6,10 @@
   <div class="container mt-4">
     <div class="text-center mb-5">
       <h2 class="fw-bold">{{ _('Dashboard') }}</h2>
-      <p class="lead">{{ _('Manage your dinner events seamlessly') }}</p>
+      <p class="lead">{{ _('Verwalten Sie einfach Ihre Versanstaltungen') }}</p>
     </div>
 
-    <h1 class="mb-4">{{ _('Hi, %(username)s!', username=current_user.username) }}</h1>
+    <h1 class="mb-4">{{ _('Hallo, %(username)s!', username=current_user.username) }}</h1>
 
     {# Categorize upcoming events #}
     {% set invited_events = [] %}
@@ -46,10 +46,10 @@
       <div class="col-md-6">
         <div class="card shadow-sm mb-4">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="card-title mb-0">{{ _('Events I Created') }}</h3>
+            <h3 class="card-title mb-0">{{ _('Von mir erstellte Events') }}</h3>
             <div class="btn-group" role="group" aria-label="Event Filters">
-              <button type="button" class="btn btn-secondary active" id="upcoming-events-btn">{{ _('Upcoming') }}</button>
-              <button type="button" class="btn btn-secondary" id="previous-events-btn">{{ _('Previous') }}</button>
+              <button type="button" class="btn btn-secondary active" id="upcoming-events-btn">{{ _('Bevorstehende') }}</button>
+              <button type="button" class="btn btn-secondary" id="previous-events-btn">{{ _('Vorherige') }}</button>
             </div>
           </div>
           <div class="card-body">
@@ -62,13 +62,13 @@
                         {{ event.title }}
                       </a>
                       <small class="text-muted d-block">
-                        {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                        {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                       </small>
                     </li>
                   {% endfor %}
                 </ul>
               {% else %}
-                <p class="text-muted">{{ _('You have not created any upcoming events.') }}</p>
+                <p class="text-muted">{{ _('Sie haben keine bevorstehenden Events erstellt.') }}</p>
               {% endif %}
             </div>
             <div id="previous-events" style="display: none;">
@@ -80,13 +80,13 @@
                         {{ event.title }}
                       </a>
                       <small class="text-muted d-block"></small>
-                        {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                        {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                       </small>
                     </li>
                   {% endfor %}
                 </ul>
               {% else %}
-                <p class="text-muted">{{ _('You have not created any previous events.') }}</p>
+                <p class="text-muted">{{ _('Sie haben keine vorherigen Events erstellt.') }}</p>
               {% endif %}
             </div>
           </div>
@@ -96,7 +96,7 @@
       <div class="col-md-6">
         <div class="card shadow-sm mb-4">
           <div class="card-header">
-            <h3 class="card-title mb-0">{{ _('Upcoming Events I\'m Invited For') }}</h3>
+            <h3 class="card-title mb-0">{{ _('Bevorstehende Events, zu denen ich eingeladen bin') }}</h3>
           </div>
           <div class="card-body">
             {% if invited_events %}
@@ -107,14 +107,14 @@
                       {{ event.title }}
                     </a>
                     <small class="text-muted d-block">
-                      {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                     </small>
                     <small class="d-block text-muted">
-                      {{ _('Created by') }} 
+                      {{ _('Erstellt von') }} 
                       <a href="{{ url_for('main.user', username=event.creator.username) }}">
                         {{ event.creator.username }}
                       </a>
-                      {% set rsvp_status = 'No response' %}
+                      {% set rsvp_status = 'Keine Antwort' %}
                       {% for rsvp in event.rsvps %}
                         {% if rsvp.user_id == current_user.id %}
                           {% set rsvp_status = rsvp.status %}
@@ -126,7 +126,7 @@
                 {% endfor %}
               </ul>
             {% else %}
-              <p class="text-muted">{{ _('No invited events.') }}</p>
+              <p class="text-muted">{{ _('Keine eingeladenen Events.') }}</p>
             {% endif %}
           </div>
         </div>
@@ -139,7 +139,7 @@
       <div class="col-md-6">
         <div class="card shadow-sm mb-4">
           <div class="card-header">
-            <h3 class="card-title mb-0">{{ _('Opt-Ins Needing Your Approval') }}</h3>
+            <h3 class="card-title mb-0">{{ _('Opt-Ins / Anmeldungen, die Ihre Genehmigung benötigen') }}</h3>
           </div>
           <div class="card-body">
             {% if need_accept_optins_events %}
@@ -150,14 +150,14 @@
                       {{ event.title }}
                     </a>
                     <small class="text-muted d-block">
-                      {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
-                      | {{ event.pending_opt_ins|length }} {{ _('pending opt-in(s)') }}
+                      {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      | {{ event.pending_opt_ins|length }} {{ _('ausstehende Opt-In(s)') }}
                     </small>
                   </li>
                 {% endfor %}
               </ul>
             {% else %}
-              <p class="text-muted">{{ _('No opt-in approvals needed.') }}</p>
+              <p class="text-muted">{{ _('Keine Genehmigungen erforderlich.') }}</p>
             {% endif %}
           </div>
         </div>
@@ -166,7 +166,7 @@
       <div class="col-md-6">
         <div class="card shadow-sm mb-4">
           <div class="card-header">
-            <h3 class="card-title mb-0">{{ _('Events Needing My RSVP') }}</h3>
+            <h3 class="card-title mb-0">{{ _('Events, die meine Antwort (RSVP) benötigen') }}</h3>
           </div>
           <div class="card-body">
             {% if need_rsvp_events %}
@@ -177,10 +177,10 @@
                       {{ event.title }}
                     </a>
                     <small class="text-muted d-block">
-                      {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                     </small>
                     <small class="d-block text-muted">
-                      {{ _('Created by') }} 
+                      {{ _('Erstellt von') }} 
                       <a href="{{ url_for('main.user', username=event.creator.username) }}">
                         {{ event.creator.username }}
                       </a>
@@ -189,7 +189,7 @@
                 {% endfor %}
               </ul>
             {% else %}
-              <p class="text-muted">{{ _('No events pending your RSVP.') }}</p>
+              <p class="text-muted">{{ _('Keine Events, die Ihre Antwort benötigen.') }}</p>
             {% endif %}
           </div>
         </div>
@@ -198,7 +198,7 @@
 
     <div class="text-center mt-5">
       <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">
-        {{ _('Explore All Dinner Events') }}
+        {{ _('Alle öffentliche Versanstaltungen erkunden') }}
       </a>
     </div>
   </div>

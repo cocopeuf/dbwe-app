@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: dbwe_app
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    volumes:
+      - ./migrations:/app/migrations
+    environment:
+      FLASK_APP: dbwe-app.py
+      FLASK_ENV: development
+      DATABASE_URL: mysql://user:password@db/dbwe_app
+
+volumes:
+  db_data:
+  migrations:

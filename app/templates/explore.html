@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>{{ _('Explore') }}</h1>
+  <h1>{{ _('Öffentliche Veranstaltungen erkunden') }}</h1>
   {% if description %}
     <p>{{ description|safe }}</p>
   {% endif %}
-  <h2>{{ _('Upcoming Public Events') }}</h2>
+  <h2>{{ _('Bevorstehende öffentliche Events') }}</h2>
   <ul class="list-group mb-3">
     {% for event in upcoming %}
       <li class="list-group-item">
@@ -12,18 +12,18 @@
           {{ event.title }} - {{ event.event_date.strftime('%Y-%m-%d') }}
         </a>
         <br>
-        <small>{{ _('Creator') }}: 
+        <small>{{ _('Ersteller') }}: 
           <a href="{{ url_for('main.user', username=event.creator.username) }}">
             {{ event.creator.username }}
           </a>
         </small>
       </li>
     {% else %}
-      <li class="list-group-item">{{ _('No upcoming public events.') }}</li>
+      <li class="list-group-item">{{ _('Keine bevorstehenden öffentlichen Events.') }}</li>
     {% endfor %}
   </ul>
 
-  <h2>{{ _('Previous Public Events') }}</h2>
+  <h2>{{ _('Vergangene öffentliche Events') }}</h2>
   <ul class="list-group">
     {% for event in previous %}
       <li class="list-group-item">
@@ -31,14 +31,14 @@
           {{ event.title }} - {{ event.event_date.strftime('%Y-%m-%d') }}
         </a>
         <br>
-        <small>{{ _('Creator') }}: 
+        <small>{{ _('Ersteller') }}: 
           <a href="{{ url_for('main.user', username=event.creator.username) }}">
             {{ event.creator.username }}
           </a>
         </small>
       </li>
     {% else %}
-      <li class="list-group-item">{{ _('No previous public events.') }}</li>
+      <li class="list-group-item">{{ _('Keine vergangenen öffentlichen Events.') }}</li>
     {% endfor %}
   </ul>
 {% endblock %}

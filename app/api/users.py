@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 from flask import request, url_for, abort
 from app import db
-from app.models import User
+from app.models import User, DinnerEvent
 from app.api import bp
 from app.api.auth import token_auth
 from app.api.errors import bad_request
@@ -79,3 +79,21 @@ def update_user(id):
     user.from_dict(data, new_user=False)
     db.session.commit()
     return user.to_dict()
+
+@bp.route('/users/<int:id>/dinner_events', methods=['GET'])
+@token_auth.login_required
+def get_user_dinner_events(id):
+    user = db.get_or_404(User, id)
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 10, type=int), 100)
+    query = sa.select(DinnerEvent).where(
+        sa.or_(
+            DinnerEvent.creator_id == user.id,
+            DinnerEvent.invited.any(User.id == user.id),
+            sa.and_(
+                DinnerEvent.is_public == True,
+                DinnerEvent.creator_id != user.id
+            )
+        )
+    )
+    return DinnerEvent.to_collection_dict(query, page, per_page, 'api.get_user_dinner_events', id=id)

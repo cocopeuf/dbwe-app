@@ -41,7 +41,7 @@ class MessageForm(FlaskForm):
 class DinnerEventForm(FlaskForm):
     title = StringField(_l('Title'), validators=[DataRequired(), Length(max=128)])
     description = TextAreaField(_l('Description'))
-    menu_url = StringField(_l('Restaurant URL'), validators=[Optional(), URL(), Length(max=256)])
+    external_event_url = StringField(_l('Event URL'), validators=[Optional(), URL(), Length(max=256)])
     date = DateTimeField(_l('Event Date'), format='%Y-%m-%dT%H:%M', validators=[DataRequired()])
     invite = StringField(_l('Invite Users (comma separated)'))
     is_public = BooleanField(_l('Public Event?'))

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>{{ _('Create Dinner Event') }}</h1>
+  <h1>{{ _('Versanstaltung erstellen') }}</h1>
   <form method="post" action="{{ url_for('main.create_dinner_event') }}">
     {{ form.hidden_tag() }}
     <div class="mb-3">
@@ -10,7 +10,7 @@
       {{ form.description.label }} {{ form.description(class="form-control") }}
     </div>
     <div class="mb-3">
-      {{ form.menu_url.label }} {{ form.menu_url(class="form-control") }}
+      {{ form.external_event_url.label }} {{ form.external_event_url(class="form-control") }}  <!-- Changed field -->
     </div>
     <!-- New date field -->
     <div class="mb-3">

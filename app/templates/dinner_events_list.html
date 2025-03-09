@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>{{ _('Dinner Events') }}</h1>
+  <h1>{{ _('Versanstaltungen') }}</h1>
   <ul class="list-group">
     {% for event in events %}
       <li class="list-group-item">
@@ -8,31 +8,31 @@
           {{ event.title }}
         </a>
         <br>
-        <small>{{ _('Created by') }}: 
+        <small>{{ _('Erstellt von') }}: 
           <a href="{{ url_for('main.user', username=event.creator.username) }}">
             {{ event.creator.username }}
           </a>
         </small>
         <br>
         <small>
-          {{ _('Invited:') }}
+          {{ _('Eingeladen:') }}
           {% for user in event.invited %}
             {% set rsvp_list = event.rsvps | selectattr("user_id", "equalto", user.id) | list %}
             {{ user.username }}:
             {% if rsvp_list %}
               {{ rsvp_list[0].status|capitalize }}
             {% else %}
-              {{ _('Pending') }}
+              {{ _('Ausstehend') }}
             {% endif %}
             {% if not loop.last %}, {% endif %}
           {% endfor %}
         </small>
         {% if current_user == event.creator %}
-          <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-sm btn-secondary float-end">{{ _('Edit') }}</a>
+          <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-sm btn-secondary float-end">{{ _('Bearbeiten') }}</a>
         {% endif %}
       </li>
     {% else %}
-      <li class="list-group-item">{{ _('No dinner events available.') }}</li>
+      <li class="list-group-item">{{ _('Keine Versanstaltungen verfügbar.') }}</li>
     {% endfor %}
   </ul>
 {% endblock %}

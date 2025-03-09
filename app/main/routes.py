@@ -208,7 +208,7 @@ def create_dinner_event():
         event = DinnerEvent(
             title=form.title.data,
             description=form.description.data,
-            menu_url=form.menu_url.data,
+            external_event_url=form.external_event_url.data,
             event_date=form.date.data,
             creator=current_user,
             is_public=form.is_public.data
@@ -345,11 +345,13 @@ def uninvite_to_dinner_event(event_id, identifier):
 def dinner_events_list():
     q = sa.select(DinnerEvent).options(
         joinedload(DinnerEvent.creator),
-        joinedload(DinnerEvent.invited)
+        joinedload(DinnerEvent.invited),
+        joinedload(DinnerEvent.pending_opt_ins)
     ).where(
         sa.or_(
             DinnerEvent.creator_id == current_user.id,
-            DinnerEvent.invited.any(User.id == current_user.id)
+            DinnerEvent.invited.any(User.id == current_user.id),
+            DinnerEvent.pending_opt_ins.any(User.id == current_user.id)
         )
     ).order_by(DinnerEvent.id.desc())
     events = db.session.execute(q).unique().scalars().all()
@@ -369,7 +371,7 @@ def edit_dinner_event(event_id):
     if form.validate_on_submit():
         event.title = form.title.data
         event.description = form.description.data
-        event.menu_url = form.menu_url.data
+        event.external_event_url = form.external_event_url.data
         event.event_date = form.date.data
         event.is_public = form.is_public.data
         if form.invite.data and not form.is_public.data:

@@ -313,12 +313,12 @@ class Task(db.Model):
         return job.meta.get('progress', 0) if job is not None else 100
 
 
-class DinnerEvent(db.Model):
+class DinnerEvent(PaginatedAPIMixin, db.Model):
     __tablename__ = 'dinnerevent'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(sa.String(128), nullable=False)
     description = db.Column(sa.Text)
-    menu_url = db.Column(sa.String(256), nullable=False)
+    external_event_url = db.Column(sa.String(256), nullable=False)
     event_date = db.Column(sa.DateTime, nullable=False, server_default=sa.text('CURRENT_TIMESTAMP'))
     creator_id = db.Column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
     is_public = db.Column(Boolean, nullable=False, default=True, server_default=sa.true())  # NEW FIELD
@@ -361,6 +361,21 @@ class DinnerEvent(db.Model):
             new_rsvp = DinnerEventRsvp(user=user, status=status)
             self.rsvps.append(new_rsvp)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'external_event_url': self.external_event_url,
+            'event_date': self.event_date.isoformat(),
+            'creator_id': self.creator_id,
+            'is_public': self.is_public,
+            'invited': [user.id for user in self.invited],
+            'pending_opt_ins': [user.id for user in self.pending_opt_ins],
+            'rsvps': [{'user_id': rsvp.user_id, 'status': rsvp.status} for rsvp in self.rsvps],
+            'comments': [{'id': comment.id, 'body': comment.body, 'timestamp': comment.timestamp.isoformat(), 'user_id': comment.user_id} for comment in self.comments]
+        }
+
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text, nullable=False)
@@ -377,7 +392,7 @@ class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
     recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
-    body = db.Column(db.String(140))
+    body = db.Column(db.String(500))
     timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
     # Relationships (adjust backrefs as needed)
     author = db.relationship('User', foreign_keys=[sender_id], backref='messages_sent')
