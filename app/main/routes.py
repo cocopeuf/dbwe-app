@@ -312,7 +312,7 @@ def invite_to_dinner_event(event_id, identifier):
         'event_title': event.title
     })
     # Add a private message to the user
-    msg_body = _('%(creator)s invited you to "%(event_title)s". View the event here: %(event_link)s',
+    msg_body = _('%(creator)s invited you to "<a href="%(event_link)s">%(event_title)s</a>".',
                  creator=event.creator.username,
                  event_title=event.title,
                  event_link=url_for('main.dinner_event_detail', event_id=event.id, _external=True))
