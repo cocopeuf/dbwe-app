@@ -312,7 +312,7 @@ def invite_to_dinner_event(event_id, identifier):
         'event_title': event.title
     })
     # Add a private message to the user
-    msg_body = _('%(creator)s invited you to "%(event_title)s". View the event here: %(event_link)s',
+    msg_body = _('%(creator)s invited you to "<a href="%(event_link)s">%(event_title)s</a>".',
                  creator=event.creator.username,
                  event_title=event.title,
                  event_link=url_for('main.dinner_event_detail', event_id=event.id, _external=True))
@@ -495,7 +495,7 @@ def rsvp_dinner_event(event_id):
         'status': rsvp_choice
     })
     # Add a private message to the event creator
-    msg_body = _('%(user)s has updated their RSVP to "%(status)s" for your event "%(event_title)s". View the event here: %(event_link)s',
+    msg_body = _('%(user)s has updated their RSVP to "%(status)s" for your event "<a href="%(event_link)s">%(event_title)s</a>".',
                  user=current_user.username,
                  status=rsvp_choice,
                  event_title=event.title,
@@ -559,3 +559,15 @@ def delete_dinner_event(event_id):
     db.session.commit()
     flash(_('Dinner event deleted successfully.'))
     return redirect(url_for('main.dinner_events_list'))
+
+@bp.route('/delete_message/<int:message_id>', methods=['POST'])
+@login_required
+def delete_message(message_id):
+    message = db.session.get(Message, message_id)
+    if message is None or message.recipient != current_user:
+        flash(_('You are not allowed to delete this message.'))
+        return redirect(url_for('main.messages'))
+    db.session.delete(message)
+    db.session.commit()
+    flash(_('Message deleted successfully.'))
+    return redirect(url_for('main.messages'))
