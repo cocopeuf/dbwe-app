@@ -17,11 +17,17 @@
             {% set _ = need_accept_optins_events.append(event) %}
          {% endif %}
       {% elif current_user in event.invited %}
-         {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
-         {% if rsvp is not defined or rsvp.status == 'no_response' %}
-            {% set _ = need_rsvp_events.append(event) %}
+         {% if event.is_public %}
+             {# For public events, simply add to invited_events #}
+             {% set _ = invited_events.append(event) %}
          {% else %}
-            {% set _ = invited_events.append(event) %}
+             {# For private events, check RSVP status #}
+             {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
+             {% if rsvp is not defined or rsvp.status == 'no_response' %}
+                {% set _ = need_rsvp_events.append(event) %}
+             {% else %}
+                {% set _ = invited_events.append(event) %}
+             {% endif %}
          {% endif %}
       {% endif %}
     {% endfor %}
@@ -46,7 +52,7 @@
         {% endif %}
       </div>
 
-      <!-- Events Where I Need to RSVP -->
+      <!-- Events Where I Need to RSVP (only for private events) -->
       <div class="col-md-6">
         <h2>{{ _('Events Needing My RSVP') }}</h2>
         {% if need_rsvp_events %}
@@ -109,7 +115,7 @@
       </div>
     </div>
 
-    <div class="text-center mt-5"></div>
+    <div class="text-center mt-5">
       <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">{{ _('Explore All Dinner Events') }}</a>
     </div>
   </div>
