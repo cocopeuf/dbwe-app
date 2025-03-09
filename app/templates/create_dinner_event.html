@@ -18,7 +18,7 @@
     </div>
     <!-- Added invite field -->
     <div class="mb-3" style="{% if form.is_public.data %}display:none;{% endif %}">
-      {{ form.invite.label }} {{ form.invite(class="form-control") }}
+      {{ form.invite.label }} {{ form.invite(class="form-control", value=form.invite.data) }}
     </div>
     <!-- New is_public field -->
     <div class="mb-3">

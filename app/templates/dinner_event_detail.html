@@ -2,7 +2,7 @@
 {% block content %}
   <h1>{{ event.title }}</h1>
   <p>{{ event.description }}</p>
-  <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
+  <p>{{ _('Created by') }}: <a href="{{ url_for('main.user', username=event.creator.username) }}">{{ event.creator.username }}</a></p>
   <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Menu') }}</a></p>
   <p>{{ _('Event Date:') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}</p>
   {% if not event.is_public %}
@@ -15,6 +15,9 @@
   
   {% if current_user == event.creator %}
     <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-secondary">{{ _('Edit') }}</a>
+    <form action="{{ url_for('main.delete_dinner_event', event_id=event.id) }}" method="post" style="display:inline;">
+      <button type="submit" class="btn btn-danger">{{ _('Delete') }}</button>
+    </form>
   {% endif %}
   
   {% if event.is_public and current_user != event.creator and current_user not in event.invited %}
@@ -27,7 +30,7 @@
   <ul>
     {% for user in event.invited %}
       <li>
-        {{ user.username }}
+        <a href="{{ url_for('main.user', username=user.username) }}">{{ user.username }}</a>
         {% if not event.is_public %}
           {% set rsvp_status = 'No response' %}
           {% for rsvp in event.rsvps %}
@@ -49,14 +52,8 @@
     {% endfor %}
   </ul>
 
-  {% if current_user == event.creator %}
-    <h3>
-      {% if event.is_public %}
-         {{ _('Review Opt-Ins') }}
-      {% else %}
-         {{ _('Pending Opt-Ins') }}
-      {% endif %}
-    </h3>
+  {% if current_user == event.creator and event.pending_opt_ins %}
+    <h3>{{ _('Pending Opt-Ins') }}</h3>
     <ul>
       {% for user in event.pending_opt_ins %}
         <li>
@@ -64,6 +61,10 @@
           <form action="{{ url_for('main.accept_opt_in', event_id=event.id, user_id=user.id) }}" method="post" style="display:inline;">
             {{ comment_form.hidden_tag() }}
             <button type="submit" class="btn btn-link btn-sm text-success">{{ _('Accept') }}</button>
+          </form>
+          <form action="{{ url_for('main.decline_opt_in', event_id=event.id, user_id=user.id) }}" method="post" style="display:inline;">
+            {{ comment_form.hidden_tag() }}
+            <button type="submit" class="btn btn-link btn-sm text-danger">{{ _('Decline') }}</button>
           </form>
         </li>
       {% else %}

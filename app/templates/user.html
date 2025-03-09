@@ -12,7 +12,7 @@
                 {% endif %}
                 <p>{{ _('%(count)d followers', count=user.followers_count()) }}, {{ _('%(count)d following', count=user.following_count()) }}</p>
                 {% if user == current_user %}
-                <p><a href="{{ url_for('main.edit_profile') }}">{{ _('Edit your profile') }}</a></p>
+                <p><a href="{{ url_for('main.user_popup', username=user.username) }}">{{ _('Edit your profile') }}</a></p>
                 {% elif not current_user.is_following(user) %}
                 <p>
                     <form action="{{ url_for('main.follow', username=user.username) }}" method="post">
@@ -34,4 +34,18 @@
             </td>
         </tr>
     </table>
+
+    <h3>{{ _('Event History') }}</h3>
+    {% if event_history %}
+    <ul>
+        {% for event in event_history %}
+        <li>
+            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            - {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>{{ _('No viewable event history.') }}</p>
+    {% endif %}
 {% endblock %}

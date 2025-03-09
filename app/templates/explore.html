@@ -12,14 +12,11 @@
           {{ event.title }} - {{ event.event_date.strftime('%Y-%m-%d') }}
         </a>
         <br>
-        <small>{{ _('Creator') }}: {{ event.creator.username }}</small>
-        <br>
-        {% set rsvp_list = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list %}
-        {% if rsvp_list %}
-          <small>{{ _('Your RSVP') }}: {{ rsvp_list[0].status | capitalize }}</small>
-        {% else %}
-          <small>{{ _('No RSVP') }}</small>
-        {% endif %}
+        <small>{{ _('Creator') }}: 
+          <a href="{{ url_for('main.user', username=event.creator.username) }}">
+            {{ event.creator.username }}
+          </a>
+        </small>
       </li>
     {% else %}
       <li class="list-group-item">{{ _('No upcoming public events.') }}</li>
@@ -34,14 +31,11 @@
           {{ event.title }} - {{ event.event_date.strftime('%Y-%m-%d') }}
         </a>
         <br>
-        <small>{{ _('Creator') }}: {{ event.creator.username }}</small>
-        <br>
-        {% set rsvp_list = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list %}
-        {% if rsvp_list %}
-          <small>{{ _('Your RSVP') }}: {{ rsvp_list[0].status | capitalize }}</small>
-        {% else %}
-          <small>{{ _('No RSVP') }}</small>
-        {% endif %}
+        <small>{{ _('Creator') }}: 
+          <a href="{{ url_for('main.user', username=event.creator.username) }}">
+            {{ event.creator.username }}
+          </a>
+        </small>
       </li>
     {% else %}
       <li class="list-group-item">{{ _('No previous public events.') }}</li>

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from flask import render_template, flash, redirect, url_for, request, g, current_app
+from flask import render_template, flash, redirect, url_for, request, g, current_app, jsonify
 from app.main import bp
 from flask_login import current_user, login_required
 from flask_babel import _, get_locale
@@ -8,6 +8,7 @@ from app import db
 from app.main.forms import EditProfileForm, EmptyForm, MessageForm, DinnerEventForm, CommentForm  
 from app.models import User, Message, Notification, DinnerEvent, Comment
 from sqlalchemy.orm import joinedload
+import json
 
 @bp.before_app_request
 def before_request():
@@ -20,14 +21,28 @@ def before_request():
 @bp.route('/index', methods=['GET'])
 @login_required
 def index():
+    now = datetime.now()
     upcoming_events = db.session.scalars(
         sa.select(DinnerEvent)
-          .where(DinnerEvent.event_date >= datetime.now())
+          .where(DinnerEvent.event_date >= now)
           .order_by(DinnerEvent.event_date.asc())
-          .limit(3)
     ).all()
+    created_upcoming_events = db.session.scalars(
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.creator_id == current_user.id, DinnerEvent.event_date >= now)
+          .order_by(DinnerEvent.event_date.asc())
+    ).all()
+    created_previous_events = db.session.scalars(
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.creator_id == current_user.id, DinnerEvent.event_date < now)
+          .order_by(DinnerEvent.event_date.desc())
+    ).all()
+    need_accept_optins_events = [event for event in created_upcoming_events if event.pending_opt_ins]
     return render_template('index.html', title=_('Home'),
-                           upcoming_events=upcoming_events)
+                           upcoming_events=upcoming_events,
+                           created_upcoming_events=created_upcoming_events,
+                           created_previous_events=created_previous_events,
+                           need_accept_optins_events=need_accept_optins_events)
 
 @bp.route('/explore')
 def explore():
@@ -57,23 +72,25 @@ def explore():
 def user(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
     form = EmptyForm()
-    return render_template('user.html', user=user, form=form)
+    # Query events that are viewable by the user
+    event_history = db.session.scalars(
+        sa.select(DinnerEvent).where(
+            sa.or_(
+                DinnerEvent.is_public == True,
+                DinnerEvent.creator_id == user.id,
+                DinnerEvent.invited.any(User.id == user.id)
+            )
+        ).order_by(DinnerEvent.event_date.desc())
+    ).all()
+    return render_template('user.html', user=user, form=form, event_history=event_history)
 
 
 @bp.route('/user/<username>/popup')
 @login_required
 def user_popup(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
-    form = EmptyForm()
-    return render_template('user_popup.html', user=user, form=form)
-
-
-@bp.route('/edit_profile', methods=['GET', 'POST'])
-@login_required
-def edit_profile():
-    form = EditProfileForm(current_user.username)
-    if form.validate_on_submit():
-        current_user.username = form.username.data
+    form = EditProfileForm(original_username=current_user.username)
+    if request.method == 'POST' and form.validate_on_submit():
         current_user.about_me = form.about_me.data
         db.session.commit()
         flash(_('Your changes have been saved.'))
@@ -81,8 +98,7 @@ def edit_profile():
     elif request.method == 'GET':
         form.username.data = current_user.username
         form.about_me.data = current_user.about_me
-    return render_template('edit_profile.html', title=_('Edit Profile'),
-                           form=form)
+    return render_template('edit_profile.html', title=_('Edit Profile'), form=form)
 
 
 @bp.route('/follow/<username>', methods=['POST'])
@@ -152,24 +168,19 @@ def messages():
     current_user.add_notification('unread_message_count', 0)
     db.session.commit()
     page = request.args.get('page', 1, type=int)
-    query = current_user.messages_received.select().order_by(
-        Message.timestamp.desc())
-    messages = db.paginate(query, page=page,
-                           per_page=current_app.config['POSTS_PER_PAGE'],
-                           error_out=False)
-    next_url = url_for('main.messages', page=messages.next_num) \
-        if messages.has_next else None
-    prev_url = url_for('main.messages', page=messages.prev_num) \
-        if messages.has_prev else None
+    # Replace the query on messages_received with a sorted list.
+    messages_list = sorted(current_user.messages_received, key=lambda m: m.timestamp, reverse=True)
+    # Pagination is omitted since we’re working with a list.
+    next_url = None
+    prev_url = None
     
-    # Query event notifications (history)
     event_notif = ["event_created", "dinner_event_invite", "rsvp_updated", "uninvited"]
     history_query = current_user.notifications.select().where(
         Notification.name.in_(event_notif)
     ).order_by(Notification.timestamp.desc())
     history = list(db.session.scalars(history_query))
     
-    return render_template('messages.html', messages=messages.items,
+    return render_template('messages.html', messages=messages_list,
                            next_url=next_url, prev_url=prev_url, history=history)
 
 
@@ -300,6 +311,13 @@ def invite_to_dinner_event(event_id, identifier):
         'event_id': event.id,
         'event_title': event.title
     })
+    # Add a private message to the user
+    msg_body = _('%(creator)s invited you to "%(event_title)s". View the event here: %(event_link)s',
+                 creator=event.creator.username,
+                 event_title=event.title,
+                 event_link=url_for('main.dinner_event_detail', event_id=event.id, _external=True))
+    msg = Message(author=current_user, recipient=user, body=msg_body)
+    db.session.add(msg)
     db.session.commit()
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
@@ -351,7 +369,7 @@ def dinner_events_list():
     events = db.session.execute(q).unique().scalars().all()
     return render_template('dinner_events_list.html', title=_('Dinner Events'), events=events)
 
-@bp.route('/dinner_event/<int:event_id>/edit', methods=['GET', 'POST'])
+@bp.route('/edit_dinner_event/<int:event_id>', methods=['GET', 'POST'])
 @login_required
 def edit_dinner_event(event_id):
     event = db.session.get(DinnerEvent, event_id)
@@ -360,30 +378,34 @@ def edit_dinner_event(event_id):
         return redirect(url_for('main.dinner_events_list'))
     form = DinnerEventForm(obj=event)
     if request.method == 'GET':
-        # Ensure the date field shows the current event date (as a date object)
-        form.date.data = event.event_date.date()
+        form.date.data = event.event_date.strftime('%Y-%m-%dT%H:%M')
+        form.prefill_invite(event.invited)
     if form.validate_on_submit():
         event.title = form.title.data
         event.description = form.description.data
         event.menu_url = form.menu_url.data
-        event.event_date = form.date.data  # update event_date
-        event.is_public = form.is_public.data  # handle is_public field
-        db.session.commit()  # Commit the event first to get the event ID
-        # Process new invitations if any
+        event.event_date = form.date.data  # This will be a datetime object due to the validator
+        event.is_public = form.is_public.data
+        # Process invite field if any
         if form.invite.data and not form.is_public.data:
             invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
             for identifier in invitees:
+                # Search by username or email
                 user = db.session.scalar(sa.select(User).where(
                     sa.or_(User.username == identifier, User.email == identifier)
                 ))
-                if user is not None:
+                if user is not None and user not in event.invited:
                     event.invite_user(user)
+                    # Add notification for invite
                     user.add_notification('dinner_event_invite', 
                         {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
                          'event_id': event.id})
         db.session.commit()
         flash(_('Dinner event updated.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
+    # Ensure form.date.data is a datetime object before rendering the template
+    if isinstance(form.date.data, str):
+        form.date.data = datetime.strptime(form.date.data, '%Y-%m-%dT%H:%M')
     return render_template('edit_dinner_event.html', title=_('Edit Dinner Event'), form=form, event=event)
 
 @bp.route('/upcoming_events')
@@ -398,10 +420,8 @@ def upcoming_events():
     ).all()
     events = []
     for event in all_events:
-        rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
-        if rsvp and rsvp.status == 'declined':
-            continue
-        events.append(event)
+        if event.is_public or current_user in event.invited:
+            events.append(event)
     return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
 
 # --- Dinner Event Opt-In Routes ---
@@ -409,7 +429,7 @@ def upcoming_events():
 @login_required
 def opt_in_event(event_id):
     event = db.session.get(DinnerEvent, event_id)
-    if event is None or not event.is_public or current_user in event.invited or current_user in event.pending_opt_ins:
+    if event is None or not event.is_public or current_user in event.pending_opt_ins:
         flash(_('You cannot opt-in to this event.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.pending_opt_ins.append(current_user)
@@ -474,6 +494,68 @@ def rsvp_dinner_event(event_id):
         'event_title': event.title,
         'status': rsvp_choice
     })
+    # Add a private message to the event creator
+    msg_body = _('%(user)s has updated their RSVP to "%(status)s" for your event "%(event_title)s". View the event here: %(event_link)s',
+                 user=current_user.username,
+                 status=rsvp_choice,
+                 event_title=event.title,
+                 event_link=url_for('main.dinner_event_detail', event_id=event.id, _external=True))
+    msg = Message(author=current_user, recipient=event.creator, body=msg_body)
+    db.session.add(msg)
     db.session.commit()
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/calendar')
+@login_required
+def event_calendar():
+    # Get all events (or restrict to upcoming events)
+    all_events = db.session.scalars(sa.select(DinnerEvent)).all()
+    
+    # Categorize events by checking if current_user is creator, invited, and if RSVP exists
+    created_events = [e for e in all_events if e.creator == current_user]
+    invited_events = [e for e in all_events if e.creator != current_user and current_user in e.invited]
+    rsvp_events = [e for e in invited_events if any(r.user_id == current_user.id and r.status != 'no_response' for r in e.rsvps)]
+    invited_only = [e for e in invited_events if e not in rsvp_events]
+
+    events_list = []
+    for event in created_events:
+        events_list.append({
+            'title': event.title,
+            'start': event.event_date.isoformat(),
+            'color': '#007bff',  # blue
+            'allDay': True,
+            'url': url_for('main.dinner_event_detail', event_id=event.id)
+        })
+    for event in invited_only:
+        events_list.append({
+            'title': event.title,
+            'start': event.event_date.isoformat(),
+            'color': '#28a745',  # green
+            'allDay': True,
+            'url': url_for('main.dinner_event_detail', event_id=event.id)
+        })
+    for event in rsvp_events:
+        events_list.append({
+            'title': event.title,
+            'start': event.event_date.isoformat(),
+            'color': '#6f42c1',  # violet
+            'allDay': True,
+            'url': url_for('main.dinner_event_detail', event_id=event.id)
+        })
+    return render_template('event_calendar.html', events=events_list)
+
+@bp.route('/dinner_event/<int:event_id>/delete', methods=['POST'])
+@login_required
+def delete_dinner_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None:
+        flash(_('Dinner event not found.'))
+        return redirect(url_for('main.dinner_events_list'))
+    if event.creator != current_user:
+        flash(_('You are not allowed to delete this dinner event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    db.session.delete(event)
+    db.session.commit()
+    flash(_('Dinner event deleted successfully.'))
+    return redirect(url_for('main.dinner_events_list'))
