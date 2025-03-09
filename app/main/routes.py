@@ -490,24 +490,30 @@ def event_calendar():
     invited_events = [e for e in all_events if e.creator != current_user and current_user in e.invited]
     rsvp_events = [e for e in invited_events if any(r.user_id == current_user.id and r.status != 'no_response' for r in e.rsvps)]
     invited_only = [e for e in invited_events if e not in rsvp_events]
-    
+
     events_list = []
     for event in created_events:
         events_list.append({
             'title': event.title,
             'start': event.event_date.isoformat(),
-            'color': '#007bff'  # blue
+            'color': '#007bff',  # blue
+            'allDay': True,
+            'url': url_for('main.dinner_event_detail', event_id=event.id)
         })
     for event in invited_only:
         events_list.append({
             'title': event.title,
             'start': event.event_date.isoformat(),
-            'color': '#28a745'  # green
+            'color': '#28a745',  # green
+            'allDay': True,
+            'url': url_for('main.dinner_event_detail', event_id=event.id)
         })
     for event in rsvp_events:
         events_list.append({
             'title': event.title,
             'start': event.event_date.isoformat(),
-            'color': '#6f42c1'  # violet
+            'color': '#6f42c1',  # violet
+            'allDay': True,
+            'url': url_for('main.dinner_event_detail', event_id=event.id)
         })
     return render_template('event_calendar.html', events=events_list)
