@@ -358,3 +358,16 @@ class Comment(db.Model):
 
     def __repr__(self):
         return f'<Comment {self.body[:20]}>'
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    body = db.Column(db.String(140))
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
+    # Relationships (adjust backrefs as needed)
+    author = db.relationship('User', foreign_keys=[sender_id], backref='messages_sent')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='messages_received')
+    
+    def __repr__(self):
+        return f'<Message {self.body[:20]}>'
