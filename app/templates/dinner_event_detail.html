@@ -17,6 +17,12 @@
     <a href="{{ url_for('main.edit_dinner_event', event_id=event.id) }}" class="btn btn-secondary">{{ _('Edit') }}</a>
   {% endif %}
   
+  {% if event.is_public and current_user != event.creator and current_user not in event.invited %}
+    <form action="{{ url_for('main.opt_in_event', event_id=event.id) }}" method="post" class="mt-3">
+      <button type="submit" class="btn btn-success">{{ _('Opt-in to Event') }}</button>
+    </form>
+  {% endif %}
+  
   <h3>{{ _('Invited Users') }}</h3>
   <ul>
     {% for user in event.invited %}
@@ -33,6 +39,23 @@
       <li>{{ _('No invitations yet.') }}</li>
     {% endfor %}
   </ul>
+
+  {% if current_user == event.creator %}
+    <h3>{{ _('Pending Opt-ins') }}</h3>
+    <ul>
+      {% for user in event.pending_opt_ins %}
+        <li>
+          {{ user.username }}
+          <form action="{{ url_for('main.accept_opt_in', event_id=event.id, user_id=user.id) }}" method="post" style="display:inline;">
+            {{ comment_form.hidden_tag() }}
+            <button type="submit" class="btn btn-link btn-sm text-success">{{ _('Accept') }}</button>
+          </form>
+        </li>
+      {% else %}
+        <li>{{ _('No pending opt-ins.') }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 
   {% if current_user != event.creator %}
     <form action="{{ url_for('main.rsvp_dinner_event', event_id=event.id) }}" method="post" class="mt-3">

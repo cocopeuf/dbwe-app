@@ -17,8 +17,14 @@
       {{ form.date.label }} {{ form.date(class="form-control") }}
     </div>
     <!-- Added invite field -->
+    {% if not form.is_public.data %}
     <div class="mb-3">
       {{ form.invite.label }} {{ form.invite(class="form-control") }}
+    </div>
+    {% endif %}
+    <!-- New is_public field -->
+    <div class="mb-3">
+      {{ form.is_public.label }} {{ form.is_public() }}
     </div>
     {{ form.submit(class="btn btn-primary") }}
   </form>

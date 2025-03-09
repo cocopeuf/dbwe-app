@@ -33,11 +33,16 @@ def index():
 def explore():
     from datetime import datetime
     now = datetime.now()
+    # Filter upcoming events to show only public ones
     upcoming = db.session.scalars(
-        sa.select(DinnerEvent).where(DinnerEvent.event_date >= now).order_by(DinnerEvent.event_date.asc())
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.event_date >= now, DinnerEvent.is_public == True)
+          .order_by(DinnerEvent.event_date.asc())
     ).all()
     previous = db.session.scalars(
-        sa.select(DinnerEvent).where(DinnerEvent.event_date < now).order_by(DinnerEvent.event_date.desc())
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.event_date < now, DinnerEvent.is_public == True)
+          .order_by(DinnerEvent.event_date.desc())
     ).all()
     description = ""
     if not current_user.is_authenticated:
@@ -192,7 +197,8 @@ def create_dinner_event():
             description=form.description.data,
             menu_url=form.menu_url.data,
             event_date=form.date.data,  # assign event_date
-            creator=current_user
+            creator=current_user,
+            is_public=form.is_public.data  # handle is_public field
         )
         db.session.add(event)
         # Process invite field if any
@@ -355,6 +361,7 @@ def edit_dinner_event(event_id):
         event.description = form.description.data
         event.menu_url = form.menu_url.data
         event.event_date = form.date.data  # update event_date
+        event.is_public = form.is_public.data  # handle is_public field
         # Process new invitations if any
         if form.invite.data:
             invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
@@ -414,4 +421,16 @@ def rsvp_dinner_event(event_id):
     })
     db.session.commit()
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/opt_in', methods=['POST'])
+@login_required
+def opt_in_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None or not event.is_public or current_user in event.invited:
+        flash(_('You cannot opt-in to this event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.invite_user(current_user)
+    db.session.commit()
+    flash(_('You have opted-in to the event. The creator will review your request.'))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
