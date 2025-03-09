@@ -1,9 +1,11 @@
+import os
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from app import create_app, db
 from app.models import User, Message, Notification, Task
 
 app = create_app()
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///db.sqlite3')
 
 
 @app.shell_context_processor
