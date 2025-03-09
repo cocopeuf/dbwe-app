@@ -7,7 +7,7 @@
       {% for message in messages %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
           <div>
-            <strong>{{ message.author.username }}</strong>: {{ message.body }}
+            <strong>{{ message.author.username }}</strong>: {{ message.body | safe }}
             <br>
             <small class="text-muted">{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
             {% if message.private %}
