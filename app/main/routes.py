@@ -25,11 +25,10 @@ def index():
         sa.select(DinnerEvent)
           .where(DinnerEvent.event_date >= datetime.now())
           .order_by(DinnerEvent.event_date.asc())
-          .limit(3)
     ).all()
     created_events = db.session.scalars(
         sa.select(DinnerEvent)
-          .where(DinnerEvent.creator_id == current_user.id)
+          .where(DinnerEvent.creator_id == current_user.id, DinnerEvent.event_date >= datetime.now())
           .order_by(DinnerEvent.event_date.asc())
     ).all()
     need_accept_optins_events = [event for event in created_events if event.pending_opt_ins]
@@ -414,12 +413,8 @@ def upcoming_events():
     ).all()
     events = []
     for event in all_events:
-        if event.is_public and current_user in event.invited:
+        if event.is_public or current_user in event.invited:
             events.append(event)
-        elif not event.is_public and current_user in event.invited:
-            rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
-            if not rsvp or rsvp.status != 'declined':
-                events.append(event)
     return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
 
 # --- Dinner Event Opt-In Routes ---
