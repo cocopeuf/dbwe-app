@@ -559,3 +559,15 @@ def delete_dinner_event(event_id):
     db.session.commit()
     flash(_('Dinner event deleted successfully.'))
     return redirect(url_for('main.dinner_events_list'))
+
+@bp.route('/delete_message/<int:message_id>', methods=['POST'])
+@login_required
+def delete_message(message_id):
+    message = db.session.get(Message, message_id)
+    if message is None or message.recipient != current_user:
+        flash(_('You are not allowed to delete this message.'))
+        return redirect(url_for('main.messages'))
+    db.session.delete(message)
+    db.session.commit()
+    flash(_('Message deleted successfully.'))
+    return redirect(url_for('main.messages'))
