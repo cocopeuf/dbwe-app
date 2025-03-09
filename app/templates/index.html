@@ -8,7 +8,7 @@
     {# Categorize upcoming events #}
     {% set invited_events = [] %}
     {% set need_rsvp_events = [] %}
-    {% set need_accept_optins_events = [] %}
+    {% set need_accept_optins_events = need_accept_optins_events %}
     {% set created_events = created_events %}
     {% for event in upcoming_events %}
       {% if event.creator == current_user %}

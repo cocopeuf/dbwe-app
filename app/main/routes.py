@@ -32,9 +32,11 @@ def index():
           .where(DinnerEvent.creator_id == current_user.id)
           .order_by(DinnerEvent.event_date.asc())
     ).all()
+    need_accept_optins_events = [event for event in created_events if event.pending_opt_ins]
     return render_template('index.html', title=_('Home'),
                            upcoming_events=upcoming_events,
-                           created_events=created_events)
+                           created_events=created_events,
+                           need_accept_optins_events=need_accept_optins_events)
 
 @bp.route('/explore')
 def explore():
