@@ -21,6 +21,50 @@
       {% endif %}
     {% endfor %}
 
+    <h1>{{ _('Home') }}</h1>
+
+    <h2>{{ _('Upcoming Events') }}</h2>
+    {% if upcoming_events %}
+      <ul>
+        {% for event in upcoming_events %}
+          <li>
+            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            - {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>{{ _('No upcoming events.') }}</p>
+    {% endif %}
+
+    <h2>{{ _('Events I Need to RSVP') }}</h2>
+    {% if rsvp_events %}
+      <ul>
+        {% for event in rsvp_events %}
+          <li>
+            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            - {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>{{ _('No events pending RSVP.') }}</p>
+    {% endif %}
+
+    <h2>{{ _('Events I Created') }}</h2>
+    {% if created_events %}
+      <ul>
+        {% for event in created_events %}
+          <li>
+            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            - {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>{{ _('You have not created any events.') }}</p>
+    {% endif %}
+
     <div class="created-events mt-4">
       <h2>{{ _('Dinner Events You Created') }}</h2>
       <ul>

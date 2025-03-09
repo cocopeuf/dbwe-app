@@ -33,11 +33,16 @@ def index():
 def explore():
     from datetime import datetime
     now = datetime.now()
+    # Filter upcoming events to show only public ones
     upcoming = db.session.scalars(
-        sa.select(DinnerEvent).where(DinnerEvent.event_date >= now).order_by(DinnerEvent.event_date.asc())
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.event_date >= now, DinnerEvent.is_public == True)
+          .order_by(DinnerEvent.event_date.asc())
     ).all()
     previous = db.session.scalars(
-        sa.select(DinnerEvent).where(DinnerEvent.event_date < now).order_by(DinnerEvent.event_date.desc())
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.event_date < now, DinnerEvent.is_public == True)
+          .order_by(DinnerEvent.event_date.desc())
     ).all()
     description = ""
     if not current_user.is_authenticated:
@@ -192,11 +197,13 @@ def create_dinner_event():
             description=form.description.data,
             menu_url=form.menu_url.data,
             event_date=form.date.data,  # assign event_date
-            creator=current_user
+            creator=current_user,
+            is_public=form.is_public.data  # handle is_public field
         )
         db.session.add(event)
+        db.session.commit()  # Commit the event first to get the event ID
         # Process invite field if any
-        if form.invite.data:
+        if form.invite.data and not form.is_public.data:
             invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
             for identifier in invitees:
                 # Search by username or email
@@ -233,14 +240,15 @@ def dinner_event_detail(event_id):
     if event is None:
         flash(_('Dinner event not found.'))
         return redirect(url_for('main.index'))
-    # Added permission check: Only show event if current_user is creator or invited
-    if event.creator != current_user and current_user not in event.invited:
+    if not event.is_public and event.creator != current_user and current_user not in event.invited:
         flash(_('You are not allowed to view this dinner event.'))
         return redirect(url_for('main.dinner_events_list'))
     # Find the RSVP record for the current user, if any
     user_rsvp = next((r for r in event.rsvps if r.user_id == current_user.id), None)
+    # Find pending opt-ins
+    pending_opt_ins = [user for user in event.invited if user not in event.rsvps]
     comment_form = CommentForm()
-    return render_template('dinner_event_detail.html', event=event, user_rsvp=user_rsvp, comment_form=comment_form)
+    return render_template('dinner_event_detail.html', event=event, user_rsvp=user_rsvp, comment_form=comment_form, pending_opt_ins=pending_opt_ins)
 
 @bp.route('/dinner_event/<int:event_id>/comment', methods=['POST'])
 @login_required
@@ -316,10 +324,14 @@ def uninvite_to_dinner_event(event_id, identifier):
         'event_title': event.title
     })
     # Clean up invitation notifications for this event
-    for notification in list(user.notifications):
-        data = notification.get_data()
-        if notification.name == 'dinner_event_invite' and data.get('event_id') == event.id:
-            db.session.delete(notification)
+    notifications_query = sa.select(Notification).where(
+        Notification.user_id == user.id,
+        Notification.name == 'dinner_event_invite',
+        Notification.payload_json.contains(f'"event_id": {event.id}')
+    )
+    notifications = db.session.scalars(notifications_query).all()
+    for notification in notifications:
+        db.session.delete(notification)
     db.session.commit()
     flash(_('User %(identifier)s has been uninvited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
@@ -355,8 +367,10 @@ def edit_dinner_event(event_id):
         event.description = form.description.data
         event.menu_url = form.menu_url.data
         event.event_date = form.date.data  # update event_date
+        event.is_public = form.is_public.data  # handle is_public field
+        db.session.commit()  # Commit the event first to get the event ID
         # Process new invitations if any
-        if form.invite.data:
+        if form.invite.data and not form.is_public.data:
             invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
             for identifier in invitees:
                 user = db.session.scalar(sa.select(User).where(
@@ -414,4 +428,52 @@ def rsvp_dinner_event(event_id):
     })
     db.session.commit()
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/opt_in', methods=['POST'])
+@login_required
+def opt_in_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    # Allow opt-in only if public and user not already in pending or invited
+    if event is None or not event.is_public or current_user in event.invited or current_user in event.pending_opt_ins:
+        flash(_('You cannot opt-in to this event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.pending_opt_ins.append(current_user)
+    db.session.commit()
+    flash(_('You have opted-in to the event. The creator will review your request.'))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/accept_opt_in/<int:user_id>', methods=['POST'])
+@login_required
+def accept_opt_in(event_id, user_id):
+    event = db.session.get(DinnerEvent, event_id)
+    user = db.session.get(User, user_id)
+    if event is None or user is None or event.creator != current_user:
+        flash(_('You are not allowed to accept opt-ins for this dinner event.'))
+        return redirect(url_for('main.index'))
+    # Only proceed if the user is in pending opt-ins.
+    if user in event.pending_opt_ins:
+        event.pending_opt_ins.remove(user)
+        if user not in event.invited:
+            event.invite_user(user)
+        db.session.commit()
+        flash(_('User %(username)s has been added to the event.', username=user.username))
+    else:
+        flash(_('User %(username)s is not pending opt-in.', username=user.username))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/decline_opt_in/<int:user_id>', methods=['POST'])
+@login_required
+def decline_opt_in(event_id, user_id):
+    event = db.session.get(DinnerEvent, event_id)
+    user = db.session.get(User, user_id)
+    if event is None or user is None or event.creator != current_user:
+        flash(_('You are not allowed to modify opt-ins for this dinner event.'))
+        return redirect(url_for('main.index'))
+    if user in event.pending_opt_ins:
+        event.pending_opt_ins.remove(user)
+        db.session.commit()
+        flash(_('User %(username)s opt-in has been declined.', username=user.username))
+    else:
+        flash(_('User %(username)s is not pending opt-in.', username=user.username))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
