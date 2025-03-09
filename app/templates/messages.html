@@ -26,19 +26,4 @@
   {% else %}
     <p class="text-muted">{{ _('No messages found.') }}</p>
   {% endif %}
-  
-  <h2 class="mt-5">{{ _('Message History') }}</h2>
-  {% if history %}
-    <ul class="list-group">
-      {% for note in history %}
-        <li class="list-group-item">
-          {{ note.data.message }}
-          <br>
-          <small class="text-muted">{{ note.timestamp|datetimeformat }}</small>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="text-muted">{{ _('No message history.') }}</p>
-  {% endif %}
 {% endblock %}

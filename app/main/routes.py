@@ -59,7 +59,7 @@ def user(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
     form = EmptyForm()
     # Query events that are viewable by the user
-    history = db.session.scalars(
+    event_history = db.session.scalars(
         sa.select(DinnerEvent).where(
             sa.or_(
                 DinnerEvent.is_public == True,
@@ -68,7 +68,7 @@ def user(username):
             )
         ).order_by(DinnerEvent.event_date.desc())
     ).all()
-    return render_template('user.html', user=user, form=form, history=history)
+    return render_template('user.html', user=user, form=form, event_history=event_history)
 
 
 @bp.route('/user/<username>/popup')
