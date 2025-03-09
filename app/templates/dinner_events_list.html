@@ -8,7 +8,7 @@
           {{ event.title }}
         </a>
         <br>
-        <small>{{ _('Created by') }}: {{ event.creator.username }}</small>
+        <small>Created by<a href="{{ url_for('main.user', username=user.username) }}">{{ user.username }}</a></small>
         <br>
         <small>
           {{ _('Invited:') }}
