@@ -16,15 +16,13 @@
             {% set _ = need_accept_optins_events.append(event) %}
          {% endif %}
       {% elif current_user in event.invited %}
+         {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
          {% if event.is_public %}
             {% set _ = invited_events.append(event) %}
+         {% elif rsvp is not defined or rsvp.status == 'no_response' %}
+            {% set _ = need_rsvp_events.append(event) %}
          {% else %}
-            {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
-            {% if rsvp is not defined or rsvp.status == 'no_response' %}
-               {% set _ = need_rsvp_events.append(event) %}
-            {% else %}
-               {% set _ = invited_events.append(event) %}
-            {% endif %}
+            {% set _ = invited_events.append(event) %}
          {% endif %}
       {% endif %}
     {% endfor %}
