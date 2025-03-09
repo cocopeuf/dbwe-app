@@ -18,10 +18,8 @@
          {% endif %}
       {% elif current_user in event.invited %}
          {% if event.is_public %}
-             {# For public events, simply add to invited_events #}
              {% set _ = invited_events.append(event) %}
          {% else %}
-             {# For private events, check RSVP status #}
              {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
              {% if rsvp is not defined or rsvp.status == 'no_response' %}
                 {% set _ = need_rsvp_events.append(event) %}
@@ -33,14 +31,37 @@
     {% endfor %}
 
     <div class="row">
-      <!-- Upcoming Events I'm Invited For (that have responded) -->
+      <!-- Left column: Events I Created -->
+      <div class="col-md-6">
+        <h2>{{ _('Events I Created') }}</h2>
+        {% if created_events %}
+          <ul class="list-group">
+            {% for event in created_events %}
+              <li class="list-group-item">
+                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                  {{ event.title }}
+                </a>
+                <small class="text-muted d-block">
+                  {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                </small>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted">{{ _('You have not created any events.') }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Right column: Upcoming Events I'm Invited For -->
       <div class="col-md-6">
         <h2>{{ _('Upcoming Events I\'m Invited For') }}</h2>
         {% if invited_events %}
           <ul class="list-group">
             {% for event in invited_events %}
               <li class="list-group-item">
-                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                  {{ event.title }}
+                </a>
                 <small class="text-muted d-block">
                   {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                 </small>
@@ -51,38 +72,21 @@
           <p class="text-muted">{{ _('No invited events.') }}</p>
         {% endif %}
       </div>
-
-      <!-- Events Where I Need to RSVP (only for private events) -->
-      <div class="col-md-6">
-        <h2>{{ _('Events Needing My RSVP') }}</h2>
-        {% if need_rsvp_events %}
-          <ul class="list-group">
-            {% for event in need_rsvp_events %}
-              <li class="list-group-item">
-                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
-                <small class="text-muted d-block">
-                  {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
-                </small>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted">{{ _('No events pending your RSVP.') }}</p>
-        {% endif %}
-      </div>
     </div>
 
     <hr class="my-4">
 
     <div class="row">
-      <!-- Events Where I Need to Accept Opt-Ins (as creator) -->
+      <!-- Left column: Opt-Ins Needing Your Approval -->
       <div class="col-md-6">
         <h2>{{ _('Opt-Ins Needing Your Approval') }}</h2>
         {% if need_accept_optins_events %}
           <ul class="list-group">
             {% for event in need_accept_optins_events %}
               <li class="list-group-item">
-                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                  {{ event.title }}
+                </a>
                 <small class="text-muted d-block">
                   {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                   | {{ event.pending_opt_ins|length }} {{ _('pending opt-in(s)') }}
@@ -95,14 +99,16 @@
         {% endif %}
       </div>
 
-      <!-- Upcoming Events I Created -->
+      <!-- Right column: Events Needing My RSVP (only for private events) -->
       <div class="col-md-6">
-        <h2>{{ _('Events I Created') }}</h2>
-        {% if created_events %}
+        <h2>{{ _('Events Needing My RSVP') }}</h2>
+        {% if need_rsvp_events %}
           <ul class="list-group">
-            {% for event in created_events %}
+            {% for event in need_rsvp_events %}
               <li class="list-group-item">
-                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                  {{ event.title }}
+                </a>
                 <small class="text-muted d-block">
                   {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
                 </small>
@@ -110,13 +116,15 @@
             {% endfor %}
           </ul>
         {% else %}
-          <p class="text-muted">{{ _('You have not created any events.') }}</p>
+          <p class="text-muted">{{ _('No events pending your RSVP.') }}</p>
         {% endif %}
       </div>
     </div>
 
     <div class="text-center mt-5">
-      <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">{{ _('Explore All Dinner Events') }}</a>
+      <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">
+        {{ _('Explore All Dinner Events') }}
+      </a>
     </div>
   </div>
 {% endblock %}
