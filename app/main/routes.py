@@ -370,7 +370,8 @@ def edit_dinner_event(event_id):
         event.title = form.title.data
         event.description = form.description.data
         event.menu_url = form.menu_url.data
-        event.event_date = form.date.data  # update event_date
+        # Convert the date string back to a datetime object
+        event.event_date = datetime.strptime(form.date.data, '%Y-%m-%dT%H:%M')
         event.is_public = form.is_public.data  # handle is_public field
         db.session.commit()  # Commit the event first to get the event ID
         # Process new invitations if any
