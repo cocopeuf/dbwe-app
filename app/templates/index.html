@@ -9,10 +9,11 @@
     {% set invited_events = [] %}
     {% set need_rsvp_events = [] %}
     {% set need_accept_optins_events = [] %}
-    {% set created_events = [] %}
+    {% set created_upcoming_events = [] %}
+    {% set created_previous_events = [] %}
     {% for event in upcoming_events %}
       {% if event.creator == current_user %}
-         {% set _ = created_events.append(event) %}
+         {% set _ = created_upcoming_events.append(event) %}
          {% if event.pending_opt_ins|length > 0 %}
             {% set _ = need_accept_optins_events.append(event) %}
          {% endif %}
@@ -27,27 +28,56 @@
          {% endif %}
       {% endif %}
     {% endfor %}
+    {% for event in previous_events %}
+      {% if event.creator == current_user %}
+         {% set _ = created_previous_events.append(event) %}
+      {% endif %}
+    {% endfor %}
 
     <div class="row">
       <!-- Left column: Events I Created -->
       <div class="col-md-6 mb-4">
         <h2>{{ _('Events I Created') }}</h2>
-        {% if created_events %}
-          <ul class="list-group">
-            {% for event in created_events|sort(attribute='event_date') %}
-              <li class="list-group-item">
-                <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
-                  {{ event.title }}
-                </a>
-                <small class="text-muted d-block">
-                  {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
-                </small>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted">{{ _('You have not created any events.') }}</p>
-        {% endif %}
+        <div class="btn-group mb-3" role="group" aria-label="Event Filters">
+          <button type="button" class="btn btn-secondary" id="upcoming-events-btn">{{ _('Upcoming') }}</button>
+          <button type="button" class="btn btn-secondary" id="previous-events-btn">{{ _('Previous') }}</button>
+        </div>
+        <div id="upcoming-events" class="event-list">
+          {% if created_upcoming_events %}
+            <ul class="list-group">
+              {% for event in created_upcoming_events|sort(attribute='event_date') %}
+                <li class="list-group-item">
+                  <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                    {{ event.title }}
+                  </a>
+                  <small class="text-muted d-block">
+                    {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                  </small>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted">{{ _('You have not created any upcoming events.') }}</p>
+          {% endif %}
+        </div>
+        <div id="previous-events" class="event-list" style="display: none;">
+          {% if created_previous_events %}
+            <ul class="list-group">
+              {% for event in created_previous_events|sort(attribute='event_date') %}
+                <li class="list-group-item">
+                  <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                    {{ event.title }}
+                  </a>
+                  <small class="text-muted d-block">
+                    {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                  </small>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted">{{ _('You have not created any previous events.') }}</p>
+          {% endif %}
+        </div>
       </div>
 
       <!-- Right column: Upcoming Events I'm Invited For -->
@@ -132,4 +162,16 @@
       </a>
     </div>
   </div>
+
+  <script>
+    document.getElementById('upcoming-events-btn').addEventListener('click', function() {
+      document.getElementById('upcoming-events').style.display = 'block';
+      document.getElementById('previous-events').style.display = 'none';
+    });
+
+    document.getElementById('previous-events-btn').addEventListener('click', function() {
+      document.getElementById('upcoming-events').style.display = 'none';
+      document.getElementById('previous-events').style.display = 'block';
+    });
+  </script>
 {% endblock %}
