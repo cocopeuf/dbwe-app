@@ -1,9 +1,15 @@
-
 {% extends "base.html" %}
 {% block head %}
   <!-- Include FullCalendar CSS & JS -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <style>
+    /* Set minimum height for the calendar container */
+    #calendar {
+      min-height: 600px;
+      margin: 0 auto;
+    }
+  </style>
 {% endblock %}
 {% block content %}
   <div class="container mt-4">
