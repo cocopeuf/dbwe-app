@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from flask import render_template, flash, redirect, url_for, request, g, current_app
+from flask import render_template, flash, redirect, url_for, request, g, current_app, jsonify
 from app.main import bp
 from flask_login import current_user, login_required
 from flask_babel import _, get_locale
@@ -8,6 +8,7 @@ from app import db
 from app.main.forms import EditProfileForm, EmptyForm, MessageForm, DinnerEventForm, CommentForm  
 from app.models import User, Message, Notification, DinnerEvent, Comment
 from sqlalchemy.orm import joinedload
+import json
 
 @bp.before_app_request
 def before_request():
@@ -477,3 +478,36 @@ def rsvp_dinner_event(event_id):
     db.session.commit()
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/calendar')
+@login_required
+def event_calendar():
+    # Get all events (or restrict to upcoming events)
+    all_events = db.session.scalars(sa.select(DinnerEvent)).all()
+    
+    # Categorize events by checking if current_user is creator, invited, and if RSVP exists
+    created_events = [e for e in all_events if e.creator == current_user]
+    invited_events = [e for e in all_events if e.creator != current_user and current_user in e.invited]
+    rsvp_events = [e for e in invited_events if any(r.user_id == current_user.id and r.status != 'no_response' for r in e.rsvps)]
+    invited_only = [e for e in invited_events if e not in rsvp_events]
+    
+    events_list = []
+    for event in created_events:
+        events_list.append({
+            'title': event.title,
+            'start': event.event_date.isoformat(),
+            'color': '#007bff'  # blue
+        })
+    for event in invited_only:
+        events_list.append({
+            'title': event.title,
+            'start': event.event_date.isoformat(),
+            'color': '#28a745'  # green
+        })
+    for event in rsvp_events:
+        events_list.append({
+            'title': event.title,
+            'start': event.event_date.isoformat(),
+            'color': '#6f42c1'  # violet
+        })
+    return render_template('event_calendar.html', events=events_list)
