@@ -40,7 +40,7 @@ class MessageForm(FlaskForm):
 class DinnerEventForm(FlaskForm):
     title = StringField(_l('Title'), validators=[DataRequired(), Length(max=128)])
     description = TextAreaField(_l('Description'))
-    menu_url = StringField(_l('Restaurant URL'), validators=[, URL(), Length(max=256)])
+    menu_url = StringField(_l('Restaurant URL'), validators=[URL(), Length(max=256)])
     date = DateTimeField(_l('Event Date'), format='%Y-%m-%d %hh-%m', validators=[DataRequired()])
     invite = StringField(_l('Invite Users (comma separated)'))
     submit = SubmitField(_l('Create Dinner Event'))
