@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from flask_babel import _, lazy_gettext as _l
 from app import db
 from app.models import User
-from wtforms.fields import DateField, DateTimeField
+from wtforms.fields import DateTimeField
 
 
 class EditProfileForm(FlaskForm):
@@ -41,7 +41,7 @@ class DinnerEventForm(FlaskForm):
     title = StringField(_l('Title'), validators=[DataRequired(), Length(max=128)])
     description = TextAreaField(_l('Description'))
     menu_url = StringField(_l('Restaurant URL'), validators=[URL(), Length(max=256)])
-    date = DateField(_l('Event Date'), format='%Y-%m-%d', validators=[DataRequired()])
+    date = DateTimeField(_l('Event Date'), format='%Y-%m-%d %H:%M', validators=[DataRequired()])
     invite = StringField(_l('Invite Users (comma separated)'))
     is_public = BooleanField(_l('Public Event?'))
     submit = SubmitField(_l('Create Dinner Event'))
