@@ -17,15 +17,11 @@
             {% set _ = need_accept_optins_events.append(event) %}
          {% endif %}
       {% elif current_user in event.invited %}
-         {% if event.is_public %}
-             {% set _ = invited_events.append(event) %}
+         {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
+         {% if rsvp is not defined or rsvp.status == 'no_response' %}
+            {% set _ = need_rsvp_events.append(event) %}
          {% else %}
-             {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
-             {% if rsvp is not defined or rsvp.status == 'no_response' %}
-                {% set _ = need_rsvp_events.append(event) %}
-             {% else %}
-                {% set _ = invited_events.append(event) %}
-             {% endif %}
+            {% set _ = invited_events.append(event) %}
          {% endif %}
       {% endif %}
     {% endfor %}
@@ -64,15 +60,13 @@
                 </a>
                 <small class="text-muted d-block">
                   {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
-                  {% if current_user in event.invited %}
-                    {% set rsvp_status = 'No response' %}
-                    {% for rsvp in event.rsvps %}
-                      {% if rsvp.user_id == current_user.id %}
-                        {% set rsvp_status = rsvp.status %}
-                      {% endif %}
-                    {% endfor %}
-                    - {{ rsvp_status|capitalize }}
-                  {% endif %}
+                  {% set rsvp_status = 'No response' %}
+                  {% for rsvp in event.rsvps %}
+                    {% if rsvp.user_id == current_user.id %}
+                      {% set rsvp_status = rsvp.status %}
+                    {% endif %}
+                  {% endfor %}
+                  - {{ rsvp_status|capitalize }}
                 </small>
               </li>
             {% endfor %}
