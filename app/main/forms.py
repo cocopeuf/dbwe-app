@@ -1,6 +1,6 @@
 from flask import request
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, TextAreaField
+from wtforms import StringField, SubmitField, TextAreaField, BooleanField
 from wtforms.validators import ValidationError, DataRequired, Length, URL
 import sqlalchemy as sa
 from flask_babel import _, lazy_gettext as _l
@@ -43,6 +43,7 @@ class DinnerEventForm(FlaskForm):
     menu_url = StringField(_l('Restaurant URL'), validators=[URL(), Length(max=256)])
     date = DateTimeField(_l('Event Date'), format='%Y-%m-%d %hh-%m', validators=[DataRequired()])
     invite = StringField(_l('Invite Users (comma separated)'))
+    is_public = BooleanField(_l('Public Event?'))
     submit = SubmitField(_l('Create Dinner Event'))
 
 

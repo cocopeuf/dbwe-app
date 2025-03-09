@@ -14,6 +14,7 @@ import redis
 import rq
 from app import db, login
 from app.search import add_to_index, remove_from_index, query_index
+from sqlalchemy import Boolean
 
 
 class SearchableMixin:
@@ -313,6 +314,7 @@ class DinnerEvent(db.Model):
     menu_url = db.Column(sa.String(256), nullable=False)
     event_date = db.Column(sa.DateTime, nullable=False, server_default=sa.text('CURRENT_TIMESTAMP'))
     creator_id = db.Column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
+    is_public = db.Column(Boolean, nullable=False, default=True, server_default=sa.true())  # NEW FIELD
     # relationships
     creator = db.relationship('User', backref='created_dinner_events')
     invited = db.relationship(

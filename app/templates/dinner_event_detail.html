@@ -5,6 +5,9 @@
   <p>{{ _('Created by') }}: {{ event.creator.username }}</p>
   <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Menu') }}</a></p>
   <p>{{ _('Event Date:') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}</p>
+  {% if not event.is_public %}
+    <p><span class="badge bg-secondary">{{ _('Private Event') }}</span></p>
+  {% endif %}
   
   {% if user_rsvp %}
     <p><strong>{{ _('Your RSVP:') }} {{ user_rsvp.status|capitalize }}</strong></p>
