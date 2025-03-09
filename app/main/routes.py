@@ -495,7 +495,7 @@ def rsvp_dinner_event(event_id):
         'status': rsvp_choice
     })
     # Add a private message to the event creator
-    msg_body = _('%(user)s has updated their RSVP to "%(status)s" for your event "%(event_title)s". View the event here: %(event_link)s',
+    msg_body = _('%(user)s has updated their RSVP to "%(status)s" for your event "<a href="%(event_link)s">%(event_title)s</a>".',
                  user=current_user.username,
                  status=rsvp_choice,
                  event_title=event.title,
