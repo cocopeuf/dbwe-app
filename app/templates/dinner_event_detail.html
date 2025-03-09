@@ -52,7 +52,7 @@
     {% endfor %}
   </ul>
 
-  {% if current_user == event.creator and not event.is_public %}
+  {% if current_user == event.creator and event.pending_opt_ins %}
     <h3>{{ _('Pending Opt-Ins') }}</h3>
     <ul>
       {% for user in event.pending_opt_ins %}
