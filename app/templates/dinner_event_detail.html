@@ -53,13 +53,7 @@
   </ul>
 
   {% if current_user == event.creator %}
-    <h3>
-      {% if event.is_public %}
-         {{ _('Review Opt-Ins') }}
-      {% else %}
-         {{ _('Pending Opt-Ins') }}
-      {% endif %}
-    </h3>
+    <h3>{{ _('Pending Opt-Ins') }}</h3>
     <ul>
       {% for user in event.pending_opt_ins %}
         <li>
@@ -67,6 +61,10 @@
           <form action="{{ url_for('main.accept_opt_in', event_id=event.id, user_id=user.id) }}" method="post" style="display:inline;">
             {{ comment_form.hidden_tag() }}
             <button type="submit" class="btn btn-link btn-sm text-success">{{ _('Accept') }}</button>
+          </form>
+          <form action="{{ url_for('main.decline_opt_in', event_id=event.id, user_id=user.id) }}" method="post" style="display:inline;">
+            {{ comment_form.hidden_tag() }}
+            <button type="submit" class="btn btn-link btn-sm text-danger">{{ _('Decline') }}</button>
           </form>
         </li>
       {% else %}
