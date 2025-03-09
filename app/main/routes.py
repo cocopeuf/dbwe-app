@@ -364,8 +364,8 @@ def edit_dinner_event(event_id):
         return redirect(url_for('main.dinner_events_list'))
     form = DinnerEventForm(obj=event)
     if request.method == 'GET':
-        # Ensure the date field shows the current event date (as a date object)
-        form.date.data = event.event_date.date()
+        # Ensure the date field shows the current event date (as a datetime-local string)
+        form.date.data = event.event_date.strftime('%Y-%m-%dT%H:%M')
     if form.validate_on_submit():
         event.title = form.title.data
         event.description = form.description.data
