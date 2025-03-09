@@ -102,6 +102,13 @@ dinner_event_invites = sa.Table(
     sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
 )
 
+dinner_event_pending = sa.Table(
+    'dinner_event_pending',
+    db.metadata,
+    sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
+)
+
 class DinnerEventRsvp(db.Model):
     __tablename__ = 'dinner_event_rsvps'
     dinner_event_id = db.Column(db.Integer, db.ForeignKey('dinnerevent.id'), primary_key=True)
@@ -324,8 +331,13 @@ class DinnerEvent(db.Model):
         secondaryjoin="dinner_event_invites.c.user_id == User.id",
         backref='invited_dinner_events'
     )
+    # NEW: pending opt-ins relationship for public events
+    pending_opt_ins = db.relationship(
+        'User',
+        secondary=dinner_event_pending,
+        backref='pending_dinner_events'
+    )
     rsvps = db.relationship('DinnerEventRsvp', back_populates='event')
-    # New: comments relationship
     comments = db.relationship('Comment', back_populates='event', cascade='all, delete-orphan')
 
     def invite_user(self, user):

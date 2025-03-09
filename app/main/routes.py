@@ -434,6 +434,38 @@ def rsvp_dinner_event(event_id):
 @login_required
 def opt_in_event(event_id):
     event = db.session.get(DinnerEvent, event_id)
+    # Allow opt-in only if public and user not already in pending or invited
+    if event is None or not event.is_public or current_user in event.invited or current_user in event.pending_opt_ins:
+        flash(_('You cannot opt-in to this event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    event.pending_opt_ins.append(current_user)
+    db.session.commit()
+    flash(_('You have opted-in to the event. The creator will review your request.'))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/accept_opt_in/<int:user_id>', methods=['POST'])
+@login_required
+def accept_opt_in(event_id, user_id):
+    event = db.session.get(DinnerEvent, event_id)
+    user = db.session.get(User, user_id)
+    if event is None or user is None or event.creator != current_user:
+        flash(_('You are not allowed to accept opt-ins for this dinner event.'))
+        return redirect(url_for('main.index'))
+    # Only proceed if the user is in pending opt-ins.
+    if user in event.pending_opt_ins:
+        event.pending_opt_ins.remove(user)
+        if user not in event.invited:
+            event.invite_user(user)
+        db.session.commit()
+        flash(_('User %(username)s has been added to the event.', username=user.username))
+    else:
+        flash(_('User %(username)s is not pending opt-in.', username=user.username))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/opt_in', methods=['POST'])
+@login_required
+def opt_in_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
     if event is None or not event.is_public or current_user in event.invited:
         flash(_('You cannot opt-in to this event.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
@@ -454,4 +486,20 @@ def accept_opt_in(event_id, user_id):
         event.invite_user(user)
         db.session.commit()
         flash(_('User %(username)s has been added to the event.', username=user.username))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+@bp.route('/dinner_event/<int:event_id>/decline_opt_in/<int:user_id>', methods=['POST'])
+@login_required
+def decline_opt_in(event_id, user_id):
+    event = db.session.get(DinnerEvent, event_id)
+    user = db.session.get(User, user_id)
+    if event is None or user is None or event.creator != current_user:
+        flash(_('You are not allowed to modify opt-ins for this dinner event.'))
+        return redirect(url_for('main.index'))
+    if user in event.pending_opt_ins:
+        event.pending_opt_ins.remove(user)
+        db.session.commit()
+        flash(_('User %(username)s opt-in has been declined.', username=user.username))
+    else:
+        flash(_('User %(username)s is not pending opt-in.', username=user.username))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
