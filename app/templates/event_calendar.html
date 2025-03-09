@@ -1,25 +1,23 @@
 {% extends "base.html" %}
 {% block head %}
-  <!-- Include FullCalendar CSS & JS and its Bootstrap theme -->
+  <!-- Include FullCalendar CSS & JS and its Bootstrap theme, minimal override -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@5.11.3/main.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@5.11.3/main.min.js"></script>
   <style>
-    /* Additional styling for a nicer appearance */
+    /* Minimal custom style to match the rest of the UI */
     #calendar {
       min-height: 700px;
       margin: 0 auto;
-      border: 1px solid #dee2e6;
-      border-radius: 0.25rem;
-      background-color: #fff;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      /* Remove extra borders so it blends with index.html styling */
+      border: none;
     }
   </style>
 {% endblock %}
 {% block content %}
   <div class="container mt-4">
-    <h1>{{ _('Event Calendar') }}</h1>
+    <h1 class="mb-4">{{ _('Event Calendar') }}</h1>
     <div id="calendar"></div>
   </div>
   <script>
@@ -32,7 +30,8 @@
            center: 'title',
            right: 'dayGridMonth,timeGridWeek,timeGridDay'
          },
-         events: {{ events|tojson }}
+         events: {{ events|tojson }},
+         height: 'auto'
       });
       calendar.render();
     });
