@@ -297,6 +297,14 @@ def invite_to_dinner_event(event_id, identifier):
         'event_id': event.id,
         'event_title': event.title
     })
+    # Add a private message to the user
+    if not event.is_public:
+        msg_body = _('%(creator)s invited you to "%(event_title)s". View the event here: %(event_link)s',
+                     creator=event.creator.username,
+                     event_title=event.title,
+                     event_link=url_for('main.dinner_event_detail', event_id=event.id, _external=True))
+        msg = Message(author=current_user, recipient=user, body=msg_body)
+        db.session.add(msg)
     db.session.commit()
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
