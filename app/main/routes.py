@@ -75,7 +75,7 @@ def user(username):
 @login_required
 def user_popup(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
-    form = EditProfileForm()  # make sure EditProfileForm is imported
+    form = EditProfileForm(original_username=current_user.username)
     if request.method == 'POST' and form.validate_on_submit():
         current_user.about_me = form.about_me.data
         db.session.commit()
@@ -513,3 +513,18 @@ def event_calendar():
             'url': url_for('main.dinner_event_detail', event_id=event.id)
         })
     return render_template('event_calendar.html', events=events_list)
+
+@bp.route('/dinner_event/<int:event_id>/delete', methods=['POST'])
+@login_required
+def delete_dinner_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None:
+        flash(_('Dinner event not found.'))
+        return redirect(url_for('main.dinner_events_list'))
+    if event.creator != current_user:
+        flash(_('You are not allowed to delete this dinner event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    db.session.delete(event)
+    db.session.commit()
+    flash(_('Dinner event deleted successfully.'))
+    return redirect(url_for('main.dinner_events_list'))
