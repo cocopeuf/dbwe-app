@@ -21,20 +21,27 @@ def before_request():
 @bp.route('/index', methods=['GET'])
 @login_required
 def index():
+    now = datetime.now()
     upcoming_events = db.session.scalars(
         sa.select(DinnerEvent)
-          .where(DinnerEvent.event_date >= datetime.now())
+          .where(DinnerEvent.event_date >= now)
           .order_by(DinnerEvent.event_date.asc())
     ).all()
-    created_events = db.session.scalars(
+    created_upcoming_events = db.session.scalars(
         sa.select(DinnerEvent)
-          .where(DinnerEvent.creator_id == current_user.id, DinnerEvent.event_date >= datetime.now())
+          .where(DinnerEvent.creator_id == current_user.id, DinnerEvent.event_date >= now)
           .order_by(DinnerEvent.event_date.asc())
     ).all()
-    need_accept_optins_events = [event for event in created_events if event.pending_opt_ins]
+    created_previous_events = db.session.scalars(
+        sa.select(DinnerEvent)
+          .where(DinnerEvent.creator_id == current_user.id, DinnerEvent.event_date < now)
+          .order_by(DinnerEvent.event_date.desc())
+    ).all()
+    need_accept_optins_events = [event for event in created_upcoming_events if event.pending_opt_ins]
     return render_template('index.html', title=_('Home'),
                            upcoming_events=upcoming_events,
-                           created_events=created_events,
+                           created_upcoming_events=created_upcoming_events,
+                           created_previous_events=created_previous_events,
                            need_accept_optins_events=need_accept_optins_events)
 
 @bp.route('/explore')
