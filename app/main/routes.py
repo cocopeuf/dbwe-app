@@ -75,6 +75,8 @@ def user(username):
 @login_required
 def user_popup(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
+    form = EditProfileForm()  # make sure EditProfileForm is imported
+    if request.method == 'POST' and form.validate_on_submit():
         current_user.about_me = form.about_me.data
         db.session.commit()
         flash(_('Your changes have been saved.'))
@@ -82,8 +84,7 @@ def user_popup(username):
     elif request.method == 'GET':
         form.username.data = current_user.username
         form.about_me.data = current_user.about_me
-    return render_template('edit_profile.html', title=_('Edit Profile'),
-                           form=form)
+    return render_template('edit_profile.html', title=_('Edit Profile'), form=form)
 
 
 @bp.route('/follow/<username>', methods=['POST'])
