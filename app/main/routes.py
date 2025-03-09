@@ -468,6 +468,14 @@ def rsvp_dinner_event(event_id):
         'event_title': event.title,
         'status': rsvp_choice
     })
+    # Add a private message to the event creator
+    msg_body = _('%(user)s has updated their RSVP to "%(status)s" for your event "%(event_title)s". View the event here: %(event_link)s',
+                 user=current_user.username,
+                 status=rsvp_choice,
+                 event_title=event.title,
+                 event_link=url_for('main.dinner_event_detail', event_id=event.id, _external=True))
+    msg = Message(author=current_user, recipient=event.creator, body=msg_body)
+    db.session.add(msg)
     db.session.commit()
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
