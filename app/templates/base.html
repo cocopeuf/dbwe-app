@@ -34,14 +34,6 @@
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('main.event_calendar') }}">{{ _('Event Calendar') }}</a>
             </li>
-            {% if current_user.is_authenticated %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('main.create_dinner_event') }}">{{ _('Create Dinner Event') }}</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('main.dinner_events_list') }}">{{ _('Dinner Events List') }}</a>
-            </li>
-            {% endif %}
           </ul>
           <ul class="navbar-nav mb-2 mb-lg-0">
             {% if current_user.is_anonymous %}
@@ -58,6 +50,12 @@
                     {{ unread_message_count }}
                 </span>
               </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.create_dinner_event') }}">{{ _('Create Dinner Event') }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.dinner_events_list') }}">{{ _('Dinner Events List') }}</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" aria-current="page" href="{{ url_for('main.user', username=current_user.username) }}">{{ _('Profile') }}</a>
