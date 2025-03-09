@@ -365,6 +365,7 @@ def edit_dinner_event(event_id):
     form = DinnerEventForm(obj=event)
     if request.method == 'GET':
         form.date.data = event.event_date.strftime('%Y-%m-%dT%H:%M')
+        form.prefill_invite(event.invited)
     if form.validate_on_submit():
         event.title = form.title.data
         event.description = form.description.data
