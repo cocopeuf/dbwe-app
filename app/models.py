@@ -337,7 +337,7 @@ class DinnerEvent(db.Model):
         secondary=dinner_event_pending,
         backref='pending_dinner_events'
     )
-    rsvps = db.relationship('DinnerEventRsvp', back_populates='event')
+    rsvps = db.relationship('DinnerEventRsvp', back_populates='event', cascade='all, delete-orphan')  # Add cascade delete
     comments = db.relationship('Comment', back_populates='event', cascade='all, delete-orphan')
 
     def invite_user(self, user):
