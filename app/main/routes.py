@@ -240,8 +240,7 @@ def dinner_event_detail(event_id):
     if event is None:
         flash(_('Dinner event not found.'))
         return redirect(url_for('main.index'))
-    # Added permission check: Only show event if current_user is creator or invited
-    if event.creator != current_user and current_user not in event.invited:
+    if not event.is_public and event.creator != current_user and current_user not in event.invited:
         flash(_('You are not allowed to view this dinner event.'))
         return redirect(url_for('main.dinner_events_list'))
     # Find the RSVP record for the current user, if any
