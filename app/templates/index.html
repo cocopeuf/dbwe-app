@@ -2,71 +2,225 @@
 {% import "bootstrap_wtf.html" as wtf %}
 
 {% block content %}
-    <h1>{{ _('Hi, %(username)s!', username=current_user.username) }}</h1>
-    
-    {# Separate upcoming dinner events into created, invited, and accepted #}
-    {% set created_events = [] %}
+  <!--  Dashboard Header -->
+  <div class="container mt-4">
+    <div class="text-center mb-5">
+      <h2 class="fw-bold">{{ _('Dashboard') }}</h2>
+      <p class="lead">{{ _('Manage your dinner events seamlessly') }}</p>
+    </div>
+
+    <h1 class="mb-4">{{ _('Hi, %(username)s!', username=current_user.username) }}</h1>
+
+    {# Categorize upcoming events #}
     {% set invited_events = [] %}
-    {% set accepted_events = [] %}
+    {% set need_rsvp_events = [] %}
+    {% set need_accept_optins_events = [] %}
+    {% set created_upcoming_events = [] %}
+    {% set created_previous_events = created_previous_events %}
     {% for event in upcoming_events %}
       {% if event.creator == current_user %}
-         {% set _ = created_events.append(event) %}
+         {% set _ = created_upcoming_events.append(event) %}
+         {% if event.pending_opt_ins|length > 0 %}
+            {% set _ = need_accept_optins_events.append(event) %}
+         {% endif %}
       {% elif current_user in event.invited %}
-         {% set rsvp_list = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list %}
-         {% if rsvp_list and rsvp_list[0].status == 'accepted' %}
-             {% set _ = accepted_events.append(event) %}
-         {% else %}
-             {% set _ = invited_events.append(event) %}
+         {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
+         {% if event.is_public %}
+            {% set _ = invited_events.append(event) %}
+         {% elif rsvp is not defined or rsvp.status == 'no_response' %}
+            {% set _ = need_rsvp_events.append(event) %}
+         {% elif rsvp.status == 'accepted' %}
+            {% set _ = invited_events.append(event) %}
          {% endif %}
       {% endif %}
     {% endfor %}
+    {% for event in previous_events %}
+      {% if event.creator == current_user %}
+         {% set _ = created_previous_events.append(event) %}
+      {% endif %}
+    {% endfor %}
 
-    <div class="created-events mt-4">
-      <h2>{{ _('Dinner Events You Created') }}</h2>
-      <ul>
-        {% for event in created_events %}
-          <li>
-            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
-              {{ event.title }}
-            </a> - {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
-          </li>
-        {% else %}
-          <li>{{ _('No created dinner events.') }}</li>
-        {% endfor %}
-      </ul>
+    <!-- Row: Created Events & Invited Events -->
+    <div class="row">
+      <!-- Card: Events I Created -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title mb-0">{{ _('Events I Created') }}</h3>
+            <div class="btn-group" role="group" aria-label="Event Filters">
+              <button type="button" class="btn btn-secondary active" id="upcoming-events-btn">{{ _('Upcoming') }}</button>
+              <button type="button" class="btn btn-secondary" id="previous-events-btn">{{ _('Previous') }}</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="upcoming-events">
+              {% if created_upcoming_events %}
+                <ul class="list-group">
+                  {% for event in created_upcoming_events|sort(attribute='event_date') %}
+                    <li class="list-group-item">
+                      <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                        {{ event.title }}
+                      </a>
+                      <small class="text-muted d-block">
+                        {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      </small>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-muted">{{ _('You have not created any upcoming events.') }}</p>
+              {% endif %}
+            </div>
+            <div id="previous-events" style="display: none;">
+              {% if created_previous_events %}
+                <ul class="list-group">
+                  {% for event in created_previous_events|sort(attribute='event_date') %}
+                    <li class="list-group-item">
+                      <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                        {{ event.title }}
+                      </a>
+                      <small class="text-muted d-block"></small>
+                        {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      </small>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-muted">{{ _('You have not created any previous events.') }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Card: Upcoming Events I'm Invited For -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header">
+            <h3 class="card-title mb-0">{{ _('Upcoming Events I\'m Invited For') }}</h3>
+          </div>
+          <div class="card-body">
+            {% if invited_events %}
+              <ul class="list-group">
+                {% for event in invited_events|sort(attribute='event_date') %}
+                  <li class="list-group-item">
+                    <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                      {{ event.title }}
+                    </a>
+                    <small class="text-muted d-block">
+                      {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <small class="d-block text-muted">
+                      {{ _('Created by') }} 
+                      <a href="{{ url_for('main.user', username=event.creator.username) }}">
+                        {{ event.creator.username }}
+                      </a>
+                      {% set rsvp_status = 'No response' %}
+                      {% for rsvp in event.rsvps %}
+                        {% if rsvp.user_id == current_user.id %}
+                          {% set rsvp_status = rsvp.status %}
+                        {% endif %}
+                      {% endfor %}
+                      - {{ rsvp_status|capitalize }}
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">{{ _('No invited events.') }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="invited-events mt-4">
-      <h2>{{ _('Dinner Events You Are Invited To') }}</h2>
-      <ul>
-        {% for event in invited_events %}
-          <li>
-            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
-              {{ event.title }}
-            </a> - {{ _('Invited by') }} {{ event.creator.username }} - {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
-          </li>
-        {% else %}
-          <li>{{ _('No pending invitations.') }}</li>
-        {% endfor %}
-      </ul>
+    <!-- Row: Opt-In Approvals & RSVP Needed -->
+    <div class="row">
+      <!-- Card: Opt-Ins Needing Your Approval -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header">
+            <h3 class="card-title mb-0">{{ _('Opt-Ins Needing Your Approval') }}</h3>
+          </div>
+          <div class="card-body">
+            {% if need_accept_optins_events %}
+              <ul class="list-group">
+                {% for event in need_accept_optins_events|sort(attribute='event_date') %}
+                  <li class="list-group-item">
+                    <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                      {{ event.title }}
+                    </a>
+                    <small class="text-muted d-block">
+                      {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      | {{ event.pending_opt_ins|length }} {{ _('pending opt-in(s)') }}
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">{{ _('No opt-in approvals needed.') }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <!-- Card: Events Needing My RSVP -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header">
+            <h3 class="card-title mb-0">{{ _('Events Needing My RSVP') }}</h3>
+          </div>
+          <div class="card-body">
+            {% if need_rsvp_events %}
+              <ul class="list-group">
+                {% for event in need_rsvp_events|sort(attribute='event_date') %}
+                  <li class="list-group-item">
+                    <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                      {{ event.title }}
+                    </a>
+                    <small class="text-muted d-block">
+                      {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <small class="d-block text-muted">
+                      {{ _('Created by') }} 
+                      <a href="{{ url_for('main.user', username=event.creator.username) }}">
+                        {{ event.creator.username }}
+                      </a>
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">{{ _('No events pending your RSVP.') }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="accepted-events mt-4">
-      <h2>{{ _('Dinner Events You Accepted') }}</h2>
-      <ul>
-        {% for event in accepted_events %}
-          <li>
-            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
-              {{ event.title }}
-            </a> - {{ _('On') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
-          </li>
-        {% else %}
-          <li>{{ _('No accepted dinner events.') }}</li>
-        {% endfor %}
-      </ul>
+    <div class="text-center mt-5">
+      <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">
+        {{ _('Explore All Dinner Events') }}
+      </a>
     </div>
+  </div>
 
-    <div class="text-center mt-4">
-        <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">{{ _('Explore all dinner events') }}</a>
-    </div>
+  <script>
+    const upcomingBtn = document.getElementById('upcoming-events-btn');
+    const previousBtn = document.getElementById('previous-events-btn');
+    const upcomingSection = document.getElementById('upcoming-events');
+    const previousSection = document.getElementById('previous-events');
+
+    upcomingBtn.addEventListener('click', function() {
+      upcomingSection.style.display = 'block';
+      previousSection.style.display = 'none';
+      upcomingBtn.classList.add('active');
+      previousBtn.classList.remove('active');
+    });
+
+    previousBtn.addEventListener('click', function() {
+      upcomingSection.style.display = 'none';
+      previousSection.style.display = 'block';
+      previousBtn.classList.add('active');
+      upcomingBtn.classList.remove('active');
+    });
+  </script>
 {% endblock %}

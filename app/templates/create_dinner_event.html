@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
   <h1>{{ _('Create Dinner Event') }}</h1>
-  <form method="post">
+  <form method="post" action="{{ url_for('main.create_dinner_event') }}">
     {{ form.hidden_tag() }}
     <div class="mb-3">
       {{ form.title.label }} {{ form.title(class="form-control") }}
@@ -14,11 +14,15 @@
     </div>
     <!-- New date field -->
     <div class="mb-3">
-      {{ form.date.label }} {{ form.date(class="form-control") }}
+      {{ form.date.label }} {{ form.date(class="form-control", type="datetime-local") }}
     </div>
     <!-- Added invite field -->
+    <div class="mb-3" style="{% if form.is_public.data %}display:none;{% endif %}">
+      {{ form.invite.label }} {{ form.invite(class="form-control", value=form.invite.data) }}
+    </div>
+    <!-- New is_public field -->
     <div class="mb-3">
-      {{ form.invite.label }} {{ form.invite(class="form-control") }}
+      {{ form.is_public.label }} {{ form.is_public() }}
     </div>
     {{ form.submit(class="btn btn-primary") }}
   </form>

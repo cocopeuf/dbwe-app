@@ -14,12 +14,16 @@
     </div>
     <!-- New date field -->
     <div class="mb-3">
-      {{ form.date.label }} {{ form.date(class="form-control") }}
+      {{ form.date.label }} {{ form.date(class="form-control", type="datetime-local", value=form.date.data.strftime('%Y-%m-%dT%H:%M')) }}
     </div>
     <!-- Added invite field -->
-    <div class="mb-3">
-      {{ form.invite.label }} {{ form.invite(class="form-control") }}
+    <div class="mb-3" style="{% if form.is_public.data %}display:none;{% endif %}">
+      {{ form.invite.label }} {{ form.invite(class="form-control", value=form.invite.data) }}
     </div>
-    {{ form.submit(class="btn btn-primary") }}
+    <!-- New is_public field -->
+    <div class="mb-3">
+      {{ form.is_public.label }} {{ form.is_public() }}
+    </div>
+    {{ form.submit(class="btn btn-primary", value=_('Edit Dinner Event')) }}
   </form>
 {% endblock %}

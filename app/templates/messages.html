@@ -1,26 +1,34 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <!-- New Event History Section -->
-  <h1 class="mt-5">{{ _('Event History') }}</h1>
-  {% if history %}
+  <h1>{{ _('Messages') }}</h1>
+  {% if messages %}
     <ul class="list-group">
-      {% for entry in history %}
-        <li class="list-group-item">
-          {{ entry.timestamp | datetimeformat }} -
-          {% if entry.name == 'event_created' %}
-            {{ _('Created event: ') }} {{ entry.get_data()['event_title'] }}
-          {% elif entry.name == 'dinner_event_invite' %}
-            {{ _('Invited to event: ') }} {{ entry.get_data()['event_title'] }}
-          {% elif entry.name == 'rsvp_updated' %}
-            {{ _('RSVP updated for event: ') }} {{ entry.get_data()['event_title'] }} - {{ entry.get_data()['status'] }}
-          {% elif entry.name == 'uninvited' %}
-            {{ _('Uninvited from event: ') }} {{ entry.get_data()['event_title'] }}
-          {% endif %}
+      {% for message in messages %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ message.author.username }}</strong>: {{ message.body | safe }}
+            <br>
+            <small class="text-muted">{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+            {% if message.private %}
+              <span class="badge bg-info">{{ _('Private') }}</span>
+            {% endif %}
+          </div>
+          <form action="{{ url_for('main.delete_message', message_id=message.id) }}" method="post" class="ms-3">
+            <button type="submit" class="btn btn-danger btn-sm">{{ _('Delete') }}</button>
+          </form>
         </li>
       {% endfor %}
     </ul>
+    <div class="mt-3">
+      {% if prev_url %}
+        <a href="{{ prev_url }}" class="btn btn-secondary">{{ _('Previous') }}</a>
+      {% endif %}
+      {% if next_url %}
+        <a href="{{ next_url }}" class="btn btn-secondary">{{ _('Next') }}</a>
+      {% endif %}
+    </div>
   {% else %}
-    <p>{{ _('No event history found.') }}</p>
+    <p class="text-muted">{{ _('No messages found.') }}</p>
   {% endif %}
 {% endblock %}

@@ -14,6 +14,7 @@ import redis
 import rq
 from app import db, login
 from app.search import add_to_index, remove_from_index, query_index
+from sqlalchemy import Boolean
 
 
 class SearchableMixin:
@@ -96,6 +97,13 @@ followers = sa.Table(
 
 dinner_event_invites = sa.Table(
     'dinner_event_invites',
+    db.metadata,
+    sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
+)
+
+dinner_event_pending = sa.Table(
+    'dinner_event_pending',
     db.metadata,
     sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
     sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
@@ -313,6 +321,7 @@ class DinnerEvent(db.Model):
     menu_url = db.Column(sa.String(256), nullable=False)
     event_date = db.Column(sa.DateTime, nullable=False, server_default=sa.text('CURRENT_TIMESTAMP'))
     creator_id = db.Column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
+    is_public = db.Column(Boolean, nullable=False, default=True, server_default=sa.true())  # NEW FIELD
     # relationships
     creator = db.relationship('User', backref='created_dinner_events')
     invited = db.relationship(
@@ -322,8 +331,13 @@ class DinnerEvent(db.Model):
         secondaryjoin="dinner_event_invites.c.user_id == User.id",
         backref='invited_dinner_events'
     )
-    rsvps = db.relationship('DinnerEventRsvp', back_populates='event')
-    # New: comments relationship
+    # NEW: pending opt-ins relationship for public events
+    pending_opt_ins = db.relationship(
+        'User',
+        secondary=dinner_event_pending,
+        backref='pending_dinner_events'
+    )
+    rsvps = db.relationship('DinnerEventRsvp', back_populates='event', cascade='all, delete-orphan')  # Add cascade delete
     comments = db.relationship('Comment', back_populates='event', cascade='all, delete-orphan')
 
     def invite_user(self, user):
