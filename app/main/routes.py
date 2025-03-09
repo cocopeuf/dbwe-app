@@ -355,7 +355,7 @@ def dinner_events_list():
     events = db.session.execute(q).unique().scalars().all()
     return render_template('dinner_events_list.html', title=_('Dinner Events'), events=events)
 
-@bp.route('/dinner_event/<int:event_id>/edit', methods=['GET', 'POST'])
+@bp.route('/edit_dinner_event/<int:event_id>', methods=['GET', 'POST'])
 @login_required
 def edit_dinner_event(event_id):
     event = db.session.get(DinnerEvent, event_id)
@@ -364,31 +364,19 @@ def edit_dinner_event(event_id):
         return redirect(url_for('main.dinner_events_list'))
     form = DinnerEventForm(obj=event)
     if request.method == 'GET':
-        # Ensure the date field shows the current event date (as a datetime-local string)
         form.date.data = event.event_date.strftime('%Y-%m-%dT%H:%M')
     if form.validate_on_submit():
         event.title = form.title.data
         event.description = form.description.data
         event.menu_url = form.menu_url.data
-        # Convert the date string back to a datetime object
-        event.event_date = datetime.strptime(form.date.data, '%Y-%m-%dT%H:%M')
-        event.is_public = form.is_public.data  # handle is_public field
-        db.session.commit()  # Commit the event first to get the event ID
-        # Process new invitations if any
-        if form.invite.data and not form.is_public.data:
-            invitees = [i.strip() for i in form.invite.data.split(',') if i.strip()]
-            for identifier in invitees:
-                user = db.session.scalar(sa.select(User).where(
-                    sa.or_(User.username == identifier, User.email == identifier)
-                ))
-                if user is not None:
-                    event.invite_user(user)
-                    user.add_notification('dinner_event_invite', 
-                        {'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
-                         'event_id': event.id})
+        event.event_date = form.date.data  # This will be a datetime object due to the validator
+        event.is_public = form.is_public.data
         db.session.commit()
         flash(_('Dinner event updated.'))
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
+    # Ensure form.date.data is a datetime object before rendering the template
+    if isinstance(form.date.data, str):
+        form.date.data = datetime.strptime(form.date.data, '%Y-%m-%dT%H:%M')
     return render_template('edit_dinner_event.html', title=_('Edit Dinner Event'), form=form, event=event)
 
 @bp.route('/upcoming_events')
