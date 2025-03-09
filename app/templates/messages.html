@@ -1,26 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <!-- New Event History Section -->
-  <h1 class="mt-5">{{ _('Event History') }}</h1>
-  {% if history %}
+  <h1>{{ _('Messages') }}</h1>
+  {% if messages %}
     <ul class="list-group">
-      {% for entry in history %}
+      {% for message in messages %}
         <li class="list-group-item">
-          {{ entry.timestamp | datetimeformat }} -
-          {% if entry.name == 'event_created' %}
-            {{ _('Created event: ') }} {{ entry.get_data()['event_title'] }}
-          {% elif entry.name == 'dinner_event_invite' %}
-            {{ _('Invited to event: ') }} {{ entry.get_data()['event_title'] }}
-          {% elif entry.name == 'rsvp_updated' %}
-            {{ _('RSVP updated for event: ') }} {{ entry.get_data()['event_title'] }} - {{ entry.get_data()['status'] }}
-          {% elif entry.name == 'uninvited' %}
-            {{ _('Uninvited from event: ') }} {{ entry.get_data()['event_title'] }}
+          <strong>{{ message.author.username }}</strong>: {{ message.body }}
+          <br>
+          <small class="text-muted">{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+          {% if message.private %}
+            <span class="badge bg-info">{{ _('Private') }}</span>
           {% endif %}
         </li>
       {% endfor %}
     </ul>
+    <div class="mt-3">
+      {% if prev_url %}
+        <a href="{{ prev_url }}" class="btn btn-secondary">{{ _('Previous') }}</a>
+      {% endif %}
+      {% if next_url %}
+        <a href="{{ next_url }}" class="btn btn-secondary">{{ _('Next') }}</a>
+      {% endif %}
+    </div>
   {% else %}
-    <p>{{ _('No event history found.') }}</p>
+    <p class="text-muted">{{ _('No messages found.') }}</p>
+  {% endif %}
+  
+  <h2 class="mt-5">{{ _('Message History') }}</h2>
+  {% if history %}
+    <ul class="list-group">
+      {% for note in history %}
+        <li class="list-group-item">
+          {{ note.data.message }}
+          <br>
+          <small class="text-muted">{{ note.timestamp|datetimeformat }}</small>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">{{ _('No message history.') }}</p>
   {% endif %}
 {% endblock %}

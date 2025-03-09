@@ -34,4 +34,18 @@
             </td>
         </tr>
     </table>
+
+    <h3>{{ _('Event History') }}</h3>
+    {% if event_history %}
+    <ul>
+        {% for event in event_history %}
+        <li>
+            <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            - {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>{{ _('No viewable event history.') }}</p>
+    {% endif %}
 {% endblock %}
