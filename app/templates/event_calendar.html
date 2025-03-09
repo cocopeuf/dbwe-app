@@ -1,13 +1,19 @@
 {% extends "base.html" %}
 {% block head %}
-  <!-- Include FullCalendar CSS & JS -->
+  <!-- Include FullCalendar CSS & JS and its Bootstrap theme -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@5.11.3/main.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@5.11.3/main.min.js"></script>
   <style>
-    /* Set minimum height for the calendar container */
+    /* Additional styling for a nicer appearance */
     #calendar {
-      min-height: 600px;
+      min-height: 700px;
       margin: 0 auto;
+      border: 1px solid #dee2e6;
+      border-radius: 0.25rem;
+      background-color: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     }
   </style>
 {% endblock %}
@@ -20,7 +26,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       var calendarEl = document.getElementById('calendar');
       var calendar = new FullCalendar.Calendar(calendarEl, {
-         initialView: 'dayGridMonth',
+         themeSystem: 'bootstrap',
          headerToolbar: {
            left: 'prev,next today',
            center: 'title',
