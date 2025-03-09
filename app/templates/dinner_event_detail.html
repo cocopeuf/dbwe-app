@@ -33,9 +33,11 @@
         <a href="{{ url_for('main.user', username=user.username) }}">{{ user.username }}</a>
         {% if not event.is_public %}
           {% set rsvp_status = 'No response' %}
-          {% for rsvp in event.rsvps %}
-            {% if rsvp.user_id == user.id %}
+            {% set rsvp_status = 'No response' %}
+              {% if rsvp.user_id == user.id %}
               {% set rsvp_status = rsvp.status %}
+             {% endif %}
+            {% endfor %}
             {% endif %}
           {% endfor %}
           - {{ rsvp_status|capitalize }}
