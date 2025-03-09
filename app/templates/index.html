@@ -9,7 +9,7 @@
     {% set invited_events = [] %}
     {% set need_rsvp_events = [] %}
     {% set need_accept_optins_events = [] %}
-    {% set created_upcoming_events = created_upcoming_events %}
+    {% set created_upcoming_events = [] %}
     {% set created_previous_events = created_previous_events %}
     {% for event in upcoming_events %}
       {% if event.creator == current_user %}
