@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 from flask_babel import _, get_locale
 import sqlalchemy as sa
 from langdetect import detect, LangDetectException
-from app import db
+from app import db, auth
 from app.main.forms import EditProfileForm, EmptyForm, PostForm, SearchForm, \
     MessageForm
 from app.models import User, Post, Message, Notification
@@ -142,7 +142,7 @@ def unfollow(username):
         if user is None:
             flash(_('User %(username)s not found.', username=username))
             return redirect(url_for('main.index'))
-        if user == current_user:
+        if user is current_user:
             flash(_('You cannot unfollow yourself!'))
             return redirect(url_for('main.user', username=username))
         current_user.unfollow(user)

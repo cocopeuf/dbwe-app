@@ -12,6 +12,7 @@ from elasticsearch import Elasticsearch
 from redis import Redis
 import rq
 from config import Config
+from flask_httpauth import HTTPBasicAuth
 
 
 def get_locale():
@@ -26,6 +27,14 @@ login.login_message = _l('Please log in to access this page.')
 mail = Mail()
 moment = Moment()
 babel = Babel()
+auth = HTTPBasicAuth()
+
+
+@auth.verify_password
+def verify_password(username, password):
+    if username == 'dbwe' and password == 'password':
+        return True
+    return False
 
 
 def create_app(config_class=Config):
@@ -58,12 +67,14 @@ def create_app(config_class=Config):
     from app.api import bp as api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
 
+    app.before_request(auth.login_required)
+
     if not app.debug and not app.testing:
         if app.config['MAIL_SERVER']:
-            auth = None
+            mail_auth = None
             if app.config['MAIL_USERNAME'] or app.config['MAIL_PASSWORD']:
-                auth = (app.config['MAIL_USERNAME'],
-                        app.config['MAIL_PASSWORD'])
+                mail_auth = (app.config['MAIL_USERNAME'],
+                             app.config['MAIL_PASSWORD'])
             secure = None
             if app.config['MAIL_USE_TLS']:
                 secure = ()
@@ -71,7 +82,7 @@ def create_app(config_class=Config):
                 mailhost=(app.config['MAIL_SERVER'], app.config['MAIL_PORT']),
                 fromaddr='no-reply@' + app.config['MAIL_SERVER'],
                 toaddrs=app.config['ADMINS'], subject='Microblog Failure',
-                credentials=auth, secure=secure)
+                credentials=mail_auth, secure=secure)
             mail_handler.setLevel(logging.ERROR)
             app.logger.addHandler(mail_handler)
 
