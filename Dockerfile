@@ -17,4 +17,4 @@ RUN chmod a+x ./entrypoint.sh
 
 EXPOSE 5000
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "dbwe-app:app"]
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "dbwe-app:app"]

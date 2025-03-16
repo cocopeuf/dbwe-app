@@ -9,6 +9,7 @@ from app.models import User
 from wtforms.fields import DateTimeField
 from datetime import datetime
 
+# Teilweise von miguelgrinberg übernommen, eigene Anpassungen sind mit "Selbsterstellt" dokumentiert
 
 class EditProfileForm(FlaskForm):
     username = StringField(_l('Username'), validators=[DataRequired()])
@@ -37,7 +38,7 @@ class MessageForm(FlaskForm):
         DataRequired(), Length(min=1, max=140)])
     submit = SubmitField(_l('Submit'))
 
-
+# Selbsterstellt
 class DinnerEventForm(FlaskForm):
     title = StringField(_l('Title'), validators=[DataRequired(), Length(max=128)])
     description = TextAreaField(_l('Description'))

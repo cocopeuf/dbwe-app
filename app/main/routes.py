@@ -11,11 +11,13 @@ from app.main import bp
 from app.main.forms import EditProfileForm, EmptyForm, MessageForm, DinnerEventForm, CommentForm  
 from app.models import User, Message, Notification, DinnerEvent, Comment
 
+# Teilweise von miguelgrinberg übernommen, eigene Anpassungen sind mit "Selbsterstellt" dokumentiert
+
 # --- Helper-Funktionen ---
 
 def get_user_by_username(username):
     return db.first_or_404(sa.select(User).where(User.username == username))
-
+#Selbsterstellt
 def process_invites(event, invite_str):
     """Verarbeitet die Komma-separierte Invite-Liste für einen DinnerEvent."""
     invitees = [i.strip() for i in invite_str.split(',') if i.strip()]
@@ -40,6 +42,7 @@ def before_request():
 
 # --- Startseiten ---
 @bp.route('/', methods=['GET'])
+#Übernommen und stark verändert
 @bp.route('/index', methods=['GET'])
 @login_required
 def index():
@@ -66,6 +69,7 @@ def index():
                            created_previous_events=created_previous_events,
                            need_accept_optins_events=need_accept_optins_events)
 
+#Übernommen und stark verändert
 @bp.route('/explore')
 def explore():
     now = datetime.now()
@@ -86,6 +90,7 @@ def explore():
                        "to see more that Webapp.").format(url_for('auth.login'))
     return render_template('explore.html', title=_('Explore'), upcoming=upcoming, previous=previous, description=description)
 
+#Erweitert für Dinner Events
 # --- User-bezogene Routen ---
 @bp.route('/user/<username>')
 @login_required
@@ -118,6 +123,7 @@ def user_popup(username):
         form.about_me.data = current_user.about_me
     return render_template('edit_profile.html', title=_('Edit Profile'), form=form)
 
+# Übernommen
 @bp.route('/follow/<username>', methods=['POST'])
 @login_required
 def follow(username):
@@ -135,6 +141,7 @@ def follow(username):
         return redirect(url_for('main.user', username=username))
     return redirect(url_for('main.index'))
 
+# Übernommen
 @bp.route('/unfollow/<username>', methods=['POST'])
 @login_required
 def unfollow(username):
@@ -152,6 +159,7 @@ def unfollow(username):
         return redirect(url_for('main.user', username=username))
     return redirect(url_for('main.index'))
 
+# Übernommen
 @bp.route('/send_message/<recipient>', methods=['GET', 'POST'])
 @login_required
 def send_message(recipient):
@@ -167,7 +175,7 @@ def send_message(recipient):
         return redirect(url_for('main.user', username=recipient))
     return render_template('send_message.html', title=_('Send Message'),
                            form=form, recipient=recipient)
-
+# Übernommen und für Dinner Events erweitert
 @bp.route('/messages')
 @login_required
 def messages():
@@ -185,7 +193,7 @@ def messages():
     
     return render_template('messages.html', messages=messages_list,
                            next_url=None, prev_url=None, history=history)
-
+# Übernommen
 @bp.route('/notifications')
 @login_required
 def notifications():
@@ -199,7 +207,22 @@ def notifications():
         'timestamp': n.timestamp
     } for n in notifications]
 
-# --- Dinner Event Routen ---
+# Grösstenteils übernommen, jedoch leicht verändert für Dinner Events
+@bp.route('/comment/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment(comment_id):
+    comment = db.session.get(Comment, comment_id)
+    if comment is None or comment.user != current_user:
+        flash(_('You are not allowed to delete this comment.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=comment.event_id if comment else 0))
+    event_id = comment.event_id
+    db.session.delete(comment)
+    db.session.commit()
+    flash(_('Your comment has been deleted.'))
+    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+
+# --- Sämtliche Dinner Event Routen sind selbsterstellt ---
+# Erstellen, Anzeigen, Bearbeiten und Löschen von Dinner Events
 @bp.route('/dinner_event/create', methods=['GET', 'POST'])
 @login_required
 def create_dinner_event():
@@ -228,6 +251,8 @@ def create_dinner_event():
         return redirect(url_for('main.dinner_event_detail', event_id=event.id))
     return render_template('create_dinner_event.html', title=_('Create Dinner Event'), form=form)
 
+
+# Dinner-Event-Detailseite mit Kommentaren, RSVPs und Einladungen
 @bp.route('/dinner_event/<int:event_id>')
 @login_required
 def dinner_event_detail(event_id):
@@ -250,6 +275,7 @@ def dinner_event_detail(event_id):
     return render_template('dinner_event_detail.html', event=event, user_rsvp=user_rsvp,
                            comment_form=comment_form, pending_opt_ins=pending_opt_ins)
 
+# Kommentar zu einem Dinner Event hinzufügen, an miguelgrinberg angelehnt und angepasst (Post)
 @bp.route('/dinner_event/<int:event_id>/comment', methods=['POST'])
 @login_required
 def comment_event(event_id):
@@ -267,19 +293,7 @@ def comment_event(event_id):
         flash(_('Failed to post comment.'))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
-@bp.route('/comment/<int:comment_id>/delete', methods=['POST'])
-@login_required
-def delete_comment(comment_id):
-    comment = db.session.get(Comment, comment_id)
-    if comment is None or comment.user != current_user:
-        flash(_('You are not allowed to delete this comment.'))
-        return redirect(url_for('main.dinner_event_detail', event_id=comment.event_id if comment else 0))
-    event_id = comment.event_id
-    db.session.delete(comment)
-    db.session.commit()
-    flash(_('Your comment has been deleted.'))
-    return redirect(url_for('main.dinner_event_detail', event_id=event_id))
-
+# Einladung zu einem Dinner Event versenden
 @bp.route('/dinner_event/<int:event_id>/invite/<identifier>', methods=['POST'])
 @login_required
 def invite_to_dinner_event(event_id, identifier):
@@ -294,11 +308,13 @@ def invite_to_dinner_event(event_id, identifier):
         flash(_('User %(identifier)s not found.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.invite_user(user_obj)
+    # Benachrichtigung an den Event-Empfänger (work in progress)
     user_obj.add_notification('dinner_event_invite', {
         'message': _('You have been invited to the event: %(event_title)s', event_title=event.title),
         'event_id': event.id,
         'event_title': event.title
     })
+    # Benachrichtigung an den Event-Empfänger  (work in progress)
     msg_body = _('%(creator)s invited you to "<a href="%(event_link)s">%(event_title)s</a>".',
                  creator=event.creator.username,
                  event_title=event.title,
@@ -309,6 +325,7 @@ def invite_to_dinner_event(event_id, identifier):
     flash(_('User %(identifier)s has been invited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+# Einladung zu einem Dinner Event zurückziehen
 @bp.route('/dinner_event/<int:event_id>/uninvite/<identifier>', methods=['POST'], endpoint='uninvite_to_dinner_event')
 @login_required
 def uninvite_to_dinner_event(event_id, identifier):
@@ -323,6 +340,7 @@ def uninvite_to_dinner_event(event_id, identifier):
         flash(_('User %(identifier)s is not invited.', identifier=identifier))
         return redirect(url_for('main.dinner_event_detail', event_id=event_id))
     event.uninvite_user(user_obj)
+    # Benachrichtigung an den Event-Empfänger (work in progress)
     user_obj.add_notification('uninvited', {
         'message': _('You have been uninvited from the event: %(event_title)s', event_title=event.title),
         'event_id': event.id,
@@ -340,8 +358,10 @@ def uninvite_to_dinner_event(event_id, identifier):
     flash(_('User %(identifier)s has been uninvited.', identifier=identifier))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+# Lade alle Dinner Events, bei denen der aktuelle User beteiligt ist
 @bp.route('/dinner_events')
 @login_required
+
 def dinner_events_list():
     q = sa.select(DinnerEvent).options(
         joinedload(DinnerEvent.creator),
@@ -357,6 +377,7 @@ def dinner_events_list():
     events = db.session.execute(q).unique().scalars().all()
     return render_template('dinner_events_list.html', title=_('Dinner Events'), events=events)
 
+# Bearbeiten eines Dinner Events
 @bp.route('/edit_dinner_event/<int:event_id>', methods=['GET', 'POST'])
 @login_required
 def edit_dinner_event(event_id):
@@ -384,6 +405,7 @@ def edit_dinner_event(event_id):
         form.date.data = datetime.strptime(form.date.data, '%Y-%m-%dT%H:%M')
     return render_template('edit_dinner_event.html', title=_('Edit Dinner Event'), form=form, event=event)
 
+# Anzeigen aller bevorstehenden Dinner Events
 @bp.route('/upcoming_events')
 @login_required
 def upcoming_events():
@@ -395,7 +417,7 @@ def upcoming_events():
     events = [event for event in all_events if event.is_public or current_user in event.invited]
     return render_template('upcoming_events.html', title=_('Upcoming Events'), events=events)
 
-# --- Dinner Event Opt-In ---
+# Opt-In-Anfrage für Dinner Events senden
 @bp.route('/dinner_event/<int:event_id>/opt_in', methods=['POST'])
 @login_required
 def opt_in_event(event_id):
@@ -408,6 +430,7 @@ def opt_in_event(event_id):
     flash(_('You have opted-in to the event. The creator will review your request.'))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+# Opt-In-Anfragen für Dinner Events akzeptieren
 @bp.route('/dinner_event/<int:event_id>/accept_opt_in/<int:user_id>', methods=['POST'])
 @login_required
 def accept_opt_in(event_id, user_id):
@@ -426,6 +449,7 @@ def accept_opt_in(event_id, user_id):
         flash(_('User %(username)s is not pending opt-in.', username=user_obj.username))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+# Opt-In-Anfragen für Dinner Events ablehnen
 @bp.route('/dinner_event/<int:event_id>/decline_opt_in/<int:user_id>', methods=['POST'])
 @login_required
 def decline_opt_in(event_id, user_id):
@@ -442,6 +466,7 @@ def decline_opt_in(event_id, user_id):
         flash(_('User %(username)s is not pending opt-in.', username=user_obj.username))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+# RSVP für Dinner Events beantworten (Annahme oder Ablehnung)
 @bp.route('/dinner_event/<int:event_id>/rsvp', methods=['POST'])
 @login_required
 def rsvp_dinner_event(event_id):
@@ -463,6 +488,7 @@ def rsvp_dinner_event(event_id):
         'event_title': event.title,
         'status': rsvp_choice
     })
+    # Benachrichtigung an den Event-Ersteller (work in progress)
     msg_body = _('%(user)s has updated their RSVP to "%(status)s" for your event "<a href="%(event_link)s">%(event_title)s</a>".',
                  user=current_user.username,
                  status=rsvp_choice,
@@ -474,6 +500,25 @@ def rsvp_dinner_event(event_id):
     flash(_('Your RSVP has been recorded as %(status)s.', status=rsvp_choice))
     return redirect(url_for('main.dinner_event_detail', event_id=event_id))
 
+# Dinner Event löschen
+@bp.route('/dinner_event/<int:event_id>/delete', methods=['POST'])
+@login_required
+def delete_dinner_event(event_id):
+    event = db.session.get(DinnerEvent, event_id)
+    if event is None:
+        flash(_('Dinner event not found.'))
+        return redirect(url_for('main.dinner_events_list'))
+    if event.creator != current_user:
+        flash(_('You are not allowed to delete this dinner event.'))
+        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
+    db.session.delete(event)
+    db.session.commit()
+    flash(_('Dinner event deleted successfully.'))
+    return redirect(url_for('main.dinner_events_list'))
+
+# --- Ende Dinner Event Routen ---
+
+# --- Kalender selbsterstellt---
 @bp.route('/calendar')
 @login_required
 def event_calendar():
@@ -510,21 +555,7 @@ def event_calendar():
         })
     return render_template('event_calendar.html', events=events_list)
 
-@bp.route('/dinner_event/<int:event_id>/delete', methods=['POST'])
-@login_required
-def delete_dinner_event(event_id):
-    event = db.session.get(DinnerEvent, event_id)
-    if event is None:
-        flash(_('Dinner event not found.'))
-        return redirect(url_for('main.dinner_events_list'))
-    if event.creator != current_user:
-        flash(_('You are not allowed to delete this dinner event.'))
-        return redirect(url_for('main.dinner_event_detail', event_id=event_id))
-    db.session.delete(event)
-    db.session.commit()
-    flash(_('Dinner event deleted successfully.'))
-    return redirect(url_for('main.dinner_events_list'))
-
+# Selbsterstellt
 @bp.route('/delete_message/<int:message_id>', methods=['POST'])
 @login_required
 def delete_message(message_id):
@@ -536,7 +567,9 @@ def delete_message(message_id):
     db.session.commit()
     flash(_('Message deleted successfully.'))
     return redirect(url_for('main.messages'))
+#
 
+# Übernommen
 @bp.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():

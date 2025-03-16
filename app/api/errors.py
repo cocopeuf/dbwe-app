@@ -2,6 +2,7 @@ from werkzeug.http import HTTP_STATUS_CODES
 from werkzeug.exceptions import HTTPException
 from app.api import bp
 
+# von miguelgrinberg übernommen
 
 def error_response(status_code, message=None):
     payload = {'error': HTTP_STATUS_CODES.get(status_code, 'Unknown error')}

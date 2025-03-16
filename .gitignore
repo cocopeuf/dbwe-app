@@ -5,5 +5,5 @@ venv
 kochrezept
 migrations
 microblog.log*
-
+.env
 README.md

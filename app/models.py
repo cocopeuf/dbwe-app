@@ -16,6 +16,7 @@ from app import db, login
 from app.search import add_to_index, remove_from_index, query_index
 from sqlalchemy import Boolean
 
+# Teilweise von miguelgrinberg übernommen, eigene Anpassungen sind mit "Selbstergstellt" dokumentiert
 
 class SearchableMixin:
     @classmethod
@@ -95,20 +96,21 @@ followers = sa.Table(
               primary_key=True)
 )
 
+#Selbstergstellt
 dinner_event_invites = sa.Table(
     'dinner_event_invites',
     db.metadata,
     sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
     sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
 )
-
+#Selbstergstellt
 dinner_event_pending = sa.Table(
     'dinner_event_pending',
     db.metadata,
     sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
     sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
 )
-
+#Selbstergstellt
 class DinnerEventRsvp(db.Model):
     __tablename__ = 'dinner_event_rsvps'
     dinner_event_id = db.Column(db.Integer, db.ForeignKey('dinnerevent.id'), primary_key=True)
@@ -117,6 +119,7 @@ class DinnerEventRsvp(db.Model):
     user = db.relationship('User', back_populates='dinner_event_rsvps')
     event = db.relationship('DinnerEvent', back_populates='rsvps')
 
+# Erweitert um dinner_event_rsvps
 class User(PaginatedAPIMixin, UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
@@ -291,7 +294,6 @@ class Notification(db.Model):
     def get_data(self):
         return json.loads(str(self.payload_json))
 
-
 class Task(db.Model):
     id: so.Mapped[str] = so.mapped_column(sa.String(36), primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
@@ -312,7 +314,7 @@ class Task(db.Model):
         job = self.get_rq_job()
         return job.meta.get('progress', 0) if job is not None else 100
 
-
+#Selbstergstellt
 class DinnerEvent(PaginatedAPIMixin, db.Model):
     __tablename__ = 'dinnerevent'
     id = db.Column(db.Integer, primary_key=True)
@@ -360,7 +362,7 @@ class DinnerEvent(PaginatedAPIMixin, db.Model):
         else:
             new_rsvp = DinnerEventRsvp(user=user, status=status)
             self.rsvps.append(new_rsvp)
-
+    # Erweiterung für  RESTful API  Dinner Events
     def to_dict(self):
         return {
             'id': self.id,
@@ -375,7 +377,25 @@ class DinnerEvent(PaginatedAPIMixin, db.Model):
             'rsvps': [{'user_id': rsvp.user_id, 'status': rsvp.status} for rsvp in self.rsvps],
             'comments': [{'id': comment.id, 'body': comment.body, 'timestamp': comment.timestamp.isoformat(), 'user_id': comment.user_id} for comment in self.comments]
         }
+    
+    def from_dict(self, data, new_event=False):
+        """Setzt Event-Daten aus einem Dictionary (z. B. aus einem API-Request)."""
+        for field in ['title', 'description', 'external_event_url', 'event_date', 'is_public']:
+            if field in data:
+                setattr(self, field, data[field])
+        if new_event:
+            self.creator_id = data.get('creator_id')
 
+        # Falls `invitees` (Liste von Usernamen) übergeben wurde, Nutzer hinzufügen
+        if 'invitees' in data:
+            from app.models import User  # Import hier notwendig, um zyklische Imports zu vermeiden
+            self.invited.clear()
+            for username in data['invitees']:
+                user = db.session.scalar(sa.select(User).where(User.username == username))
+                if user:
+                    self.invite_user(user)
+
+# Angepassung für Dinner Events
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text, nullable=False)

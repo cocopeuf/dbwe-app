@@ -3,6 +3,8 @@ from datetime import datetime, timezone, timedelta
 from app import create_app, db
 from app.models import User, DinnerEvent, DinnerEventRsvp
 
+# Basis-Setup von miguelgrinberg übernommen und für DinnerEvent-Model erweitert
+
 class TestConfig:
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
@@ -29,10 +31,11 @@ class UserModelCase(unittest.TestCase):
     def setUp(self):
         db.session.rollback()
         db.session.query(User).delete()
-        db.session.query(DinnerEvent).delete()
-        db.session.query(DinnerEventRsvp).delete()
+        db.session.query(DinnerEvent).delete() # Erweiterung für DinnerEvent-Model
+        db.session.query(DinnerEventRsvp).delete() # Erweiterung für DinnerEvent-Model
         db.session.commit()
 
+# Selbsterstellte Funktionen für die Erstellung von Testdaten
     def create_default_user(self):
         user = User.query.filter_by(username="defaultuser").first()
         if not user:
@@ -82,7 +85,7 @@ class UserModelCase(unittest.TestCase):
     def test_delete_rsvp(self):
         user = self.create_default_user()
         event = self.create_default_event(user)
-        rsvp = DinnerEventRsvp(user_id=user.id, dinner_event_id=event.id, status='accepted')
+        rsvp = DinnerEventRsvp(user_id=user.id, dinner_event_id=event.id, status='deleted')
         db.session.add(rsvp)
         db.session.commit()
         db.session.delete(rsvp)
@@ -124,6 +127,8 @@ class UserModelCase(unittest.TestCase):
         db.session.commit()
         self.assertNotIn(user, event.pending_opt_ins)
 
+# Testfälle für User-Model von miguelgrinberg übernommen
+
     def test_user_login(self):
         user = User(username='loginuser', email='login@example.com')
         user.set_password('mypassword')
@@ -152,7 +157,7 @@ class UserModelCase(unittest.TestCase):
 if __name__ == '__main__':
     loader = unittest.TestLoader()
 
-    # Define a custom order for the test cases
+    # Definierte Reihenfolge der Testcases (Selbsterstellt)
     test_order = [
         "test_user_login",
         "test_user_registration",
