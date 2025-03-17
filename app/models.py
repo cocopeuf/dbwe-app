@@ -14,7 +14,9 @@ import redis
 import rq
 from app import db, login
 from app.search import add_to_index, remove_from_index, query_index
+from sqlalchemy import Boolean
 
+# Teilweise von miguelgrinberg übernommen, eigene Anpassungen sind mit "Selbstergstellt" dokumentiert
 
 class SearchableMixin:
     @classmethod
@@ -94,7 +96,30 @@ followers = sa.Table(
               primary_key=True)
 )
 
+#Selbstergstellt
+dinner_event_invites = sa.Table(
+    'dinner_event_invites',
+    db.metadata,
+    sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
+)
+#Selbstergstellt
+dinner_event_pending = sa.Table(
+    'dinner_event_pending',
+    db.metadata,
+    sa.Column('dinner_event_id', sa.Integer, sa.ForeignKey('dinnerevent.id'), primary_key=True),
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
+)
+#Selbstergstellt
+class DinnerEventRsvp(db.Model):
+    __tablename__ = 'dinner_event_rsvps'
+    dinner_event_id = db.Column(db.Integer, db.ForeignKey('dinnerevent.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    status = db.Column(sa.String(16), nullable=False, server_default='no_response')
+    user = db.relationship('User', back_populates='dinner_event_rsvps')
+    event = db.relationship('DinnerEvent', back_populates='rsvps')
 
+# Erweitert um dinner_event_rsvps
 class User(PaginatedAPIMixin, UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
@@ -110,8 +135,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         sa.String(32), index=True, unique=True)
     token_expiration: so.Mapped[Optional[datetime]]
 
-    posts: so.WriteOnlyMapped['Post'] = so.relationship(
-        back_populates='author')
     following: so.WriteOnlyMapped['User'] = so.relationship(
         secondary=followers, primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
@@ -120,13 +143,10 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         secondary=followers, primaryjoin=(followers.c.followed_id == id),
         secondaryjoin=(followers.c.follower_id == id),
         back_populates='following')
-    messages_sent: so.WriteOnlyMapped['Message'] = so.relationship(
-        foreign_keys='Message.sender_id', back_populates='author')
-    messages_received: so.WriteOnlyMapped['Message'] = so.relationship(
-        foreign_keys='Message.recipient_id', back_populates='recipient')
     notifications: so.WriteOnlyMapped['Notification'] = so.relationship(
         back_populates='user')
     tasks: so.WriteOnlyMapped['Task'] = so.relationship(back_populates='user')
+    dinner_event_rsvps = db.relationship('DinnerEventRsvp', back_populates='user')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -163,21 +183,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             self.following.select().subquery())
         return db.session.scalar(query)
 
-    def following_posts(self):
-        Author = so.aliased(User)
-        Follower = so.aliased(User)
-        return (
-            sa.select(Post)
-            .join(Post.author.of_type(Author))
-            .join(Author.followers.of_type(Follower), isouter=True)
-            .where(sa.or_(
-                Follower.id == self.id,
-                Author.id == self.id,
-            ))
-            .group_by(Post)
-            .order_by(Post.timestamp.desc())
-        )
-
     def get_reset_password_token(self, expires_in=600):
         return jwt.encode(
             {'reset_password': self.id, 'exp': time() + expires_in},
@@ -200,8 +205,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             query.subquery()))
 
     def add_notification(self, name, data):
-        db.session.execute(self.notifications.delete().where(
-            Notification.name == name))
         n = Notification(name=name, payload_json=json.dumps(data), user=self)
         db.session.add(n)
         return n
@@ -223,11 +226,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
                                           Task.complete == False)
         return db.session.scalar(query)
 
-    def posts_count(self):
-        query = sa.select(sa.func.count()).select_from(
-            self.posts.select().subquery())
-        return db.session.scalar(query)
-
     def to_dict(self, include_email=False):
         data = {
             'id': self.id,
@@ -235,7 +233,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             'last_seen': self.last_seen.replace(
                 tzinfo=timezone.utc).isoformat(),
             'about_me': self.about_me,
-            'post_count': self.posts_count(),
             'follower_count': self.followers_count(),
             'following_count': self.following_count(),
             '_links': {
@@ -284,43 +281,6 @@ def load_user(id):
     return db.session.get(User, int(id))
 
 
-class Post(SearchableMixin, db.Model):
-    __searchable__ = ['body']
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(
-        index=True, default=lambda: datetime.now(timezone.utc))
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-                                               index=True)
-    language: so.Mapped[Optional[str]] = so.mapped_column(sa.String(5))
-
-    author: so.Mapped[User] = so.relationship(back_populates='posts')
-
-    def __repr__(self):
-        return '<Post {}>'.format(self.body)
-
-
-class Message(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    sender_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-                                                 index=True)
-    recipient_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-                                                    index=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(
-        index=True, default=lambda: datetime.now(timezone.utc))
-
-    author: so.Mapped[User] = so.relationship(
-        foreign_keys='Message.sender_id',
-        back_populates='messages_sent')
-    recipient: so.Mapped[User] = so.relationship(
-        foreign_keys='Message.recipient_id',
-        back_populates='messages_received')
-
-    def __repr__(self):
-        return '<Message {}>'.format(self.body)
-
-
 class Notification(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
@@ -333,7 +293,6 @@ class Notification(db.Model):
 
     def get_data(self):
         return json.loads(str(self.payload_json))
-
 
 class Task(db.Model):
     id: so.Mapped[str] = so.mapped_column(sa.String(36), primary_key=True)
@@ -354,3 +313,110 @@ class Task(db.Model):
     def get_progress(self):
         job = self.get_rq_job()
         return job.meta.get('progress', 0) if job is not None else 100
+
+#Selbstergstellt
+class DinnerEvent(PaginatedAPIMixin, db.Model):
+    __tablename__ = 'dinnerevent'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(sa.String(128), nullable=False)
+    description = db.Column(sa.Text)
+    external_event_url = db.Column(sa.String(256), nullable=False)
+    event_date = db.Column(sa.DateTime, nullable=False, server_default=sa.text('CURRENT_TIMESTAMP'))
+    creator_id = db.Column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
+    is_public = db.Column(Boolean, nullable=False, default=True, server_default=sa.true())  # NEW FIELD
+    # relationships
+    creator = db.relationship('User', backref='created_dinner_events')
+    invited = db.relationship(
+        'User',
+        secondary=dinner_event_invites,
+        primaryjoin="dinner_event_invites.c.dinner_event_id == DinnerEvent.id",
+        secondaryjoin="dinner_event_invites.c.user_id == User.id",
+        backref='invited_dinner_events'
+    )
+    # NEW: pending opt-ins relationship for public events
+    pending_opt_ins = db.relationship(
+        'User',
+        secondary=dinner_event_pending,
+        backref='pending_dinner_events'
+    )
+    rsvps = db.relationship('DinnerEventRsvp', back_populates='event', cascade='all, delete-orphan')  # Add cascade delete
+    comments = db.relationship('Comment', back_populates='event', cascade='all, delete-orphan')
+
+    def invite_user(self, user):
+        if user not in self.invited:
+            self.invited.append(user)
+            
+    def uninvite_user(self, user):
+        if user in self.invited:
+            self.invited.remove(user)
+            # Remove existing RSVP, if any, for this user
+            rsvp = next((r for r in self.rsvps if r.user_id == user.id), None)
+            if rsvp:
+                db.session.delete(rsvp)
+
+    # New: RSVP helper method
+    def rsvp(self, user, status):
+        existing = next((r for r in self.rsvps if r.user_id == user.id), None)
+        if existing:
+            existing.status = status
+        else:
+            new_rsvp = DinnerEventRsvp(user=user, status=status)
+            self.rsvps.append(new_rsvp)
+    # Erweiterung für  RESTful API  Dinner Events
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'external_event_url': self.external_event_url,
+            'event_date': self.event_date.isoformat(),
+            'creator_id': self.creator_id,
+            'is_public': self.is_public,
+            'invited': [user.id for user in self.invited],
+            'pending_opt_ins': [user.id for user in self.pending_opt_ins],
+            'rsvps': [{'user_id': rsvp.user_id, 'status': rsvp.status} for rsvp in self.rsvps],
+            'comments': [{'id': comment.id, 'body': comment.body, 'timestamp': comment.timestamp.isoformat(), 'user_id': comment.user_id} for comment in self.comments]
+        }
+    
+    def from_dict(self, data, new_event=False):
+        """Setzt Event-Daten aus einem Dictionary (z. B. aus einem API-Request)."""
+        for field in ['title', 'description', 'external_event_url', 'event_date', 'is_public']:
+            if field in data:
+                setattr(self, field, data[field])
+        if new_event:
+            self.creator_id = data.get('creator_id')
+
+        # Falls `invitees` (Liste von Usernamen) übergeben wurde, Nutzer hinzufügen
+        if 'invitees' in data:
+            from app.models import User  # Import hier notwendig, um zyklische Imports zu vermeiden
+            self.invited.clear()
+            for username in data['invitees']:
+                user = db.session.scalar(sa.select(User).where(User.username == username))
+                if user:
+                    self.invite_user(user)
+
+# Angepassung für Dinner Events
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(sa.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    user_id = db.Column(db.Integer, sa.ForeignKey('user.id'), nullable=False)
+    event_id = db.Column(db.Integer, sa.ForeignKey('dinnerevent.id'), nullable=False)
+    user = db.relationship('User', backref='comments')
+    event = db.relationship('DinnerEvent', back_populates='comments')
+
+    def __repr__(self):
+        return f'<Comment {self.body[:20]}>'
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    body = db.Column(db.String(500))
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
+    # Relationships (adjust backrefs as needed)
+    author = db.relationship('User', foreign_keys=[sender_id], backref='messages_sent')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='messages_received')
+    
+    def __repr__(self):
+        return f'<Message {self.body[:20]}>'

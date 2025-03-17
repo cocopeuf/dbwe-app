@@ -2,25 +2,225 @@
 {% import "bootstrap_wtf.html" as wtf %}
 
 {% block content %}
-    <h1>{{ _('Hi, %(username)s!', username=current_user.username) }}</h1>
-    {% if form %}
-    {{ wtf.quick_form(form) }}
-    {% endif %}
-    {% for post in posts %}
-        {% include '_post.html' %}
+  <!--  Dashboard Header -->
+  <div class="container mt-4">
+    <div class="text-center mb-5">
+      <h2 class="fw-bold">{{ _('Dashboard') }}</h2>
+      <p class="lead">{{ _('Verwalten Sie einfach Ihre Versanstaltungen') }}</p>
+    </div>
+
+    <h1 class="mb-4">{{ _('Hallo, %(username)s!', username=current_user.username) }}</h1>
+
+    {# Categorize upcoming events #}
+    {% set invited_events = [] %}
+    {% set need_rsvp_events = [] %}
+    {% set need_accept_optins_events = [] %}
+    {% set created_upcoming_events = [] %}
+    {% set created_previous_events = created_previous_events %}
+    {% for event in upcoming_events %}
+      {% if event.creator == current_user %}
+         {% set _ = created_upcoming_events.append(event) %}
+         {% if event.pending_opt_ins|length > 0 %}
+            {% set _ = need_accept_optins_events.append(event) %}
+         {% endif %}
+      {% elif current_user in event.invited %}
+         {% set rsvp = event.rsvps | selectattr("user_id", "equalto", current_user.id) | list | first %}
+         {% if event.is_public %}
+            {% set _ = invited_events.append(event) %}
+         {% elif rsvp is not defined or rsvp.status == 'no_response' %}
+            {% set _ = need_rsvp_events.append(event) %}
+         {% elif rsvp.status == 'accepted' %}
+            {% set _ = invited_events.append(event) %}
+         {% endif %}
+      {% endif %}
     {% endfor %}
-    <nav aria-label="Post navigation">
-        <ul class="pagination">
-            <li class="page-item{% if not prev_url %} disabled{% endif %}">
-                <a class="page-link" href="{{ prev_url }}">
-                    <span aria-hidden="true">&larr;</span> {{ _('Newer posts') }}
-                </a>
-            </li>
-            <li class="page-item{% if not next_url %} disabled{% endif %}">
-                <a class="page-link" href="{{ next_url }}">
-                    {{ _('Older posts') }} <span aria-hidden="true">&rarr;</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
+    {% for event in previous_events %}
+      {% if event.creator == current_user %}
+         {% set _ = created_previous_events.append(event) %}
+      {% endif %}
+    {% endfor %}
+
+    <!-- Row: Created Events & Invited Events -->
+    <div class="row">
+      <!-- Card: Events I Created -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title mb-0">{{ _('Von mir erstellte Events') }}</h3>
+            <div class="btn-group" role="group" aria-label="Event Filters">
+              <button type="button" class="btn btn-secondary active" id="upcoming-events-btn">{{ _('Bevorstehende') }}</button>
+              <button type="button" class="btn btn-secondary" id="previous-events-btn">{{ _('Vorherige') }}</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="upcoming-events">
+              {% if created_upcoming_events %}
+                <ul class="list-group">
+                  {% for event in created_upcoming_events|sort(attribute='event_date') %}
+                    <li class="list-group-item">
+                      <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                        {{ event.title }}
+                      </a>
+                      <small class="text-muted d-block">
+                        {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      </small>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-muted">{{ _('Sie haben keine bevorstehenden Events erstellt.') }}</p>
+              {% endif %}
+            </div>
+            <div id="previous-events" style="display: none;">
+              {% if created_previous_events %}
+                <ul class="list-group">
+                  {% for event in created_previous_events|sort(attribute='event_date') %}
+                    <li class="list-group-item">
+                      <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                        {{ event.title }}
+                      </a>
+                      <small class="text-muted d-block"></small>
+                        {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      </small>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-muted">{{ _('Sie haben keine vorherigen Events erstellt.') }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Card: Upcoming Events I'm Invited For -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header">
+            <h3 class="card-title mb-0">{{ _('Bevorstehende Events, zu denen ich eingeladen bin') }}</h3>
+          </div>
+          <div class="card-body">
+            {% if invited_events %}
+              <ul class="list-group">
+                {% for event in invited_events|sort(attribute='event_date') %}
+                  <li class="list-group-item">
+                    <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                      {{ event.title }}
+                    </a>
+                    <small class="text-muted d-block">
+                      {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <small class="d-block text-muted">
+                      {{ _('Erstellt von') }} 
+                      <a href="{{ url_for('main.user', username=event.creator.username) }}">
+                        {{ event.creator.username }}
+                      </a>
+                      {% set rsvp_status = 'Keine Antwort' %}
+                      {% for rsvp in event.rsvps %}
+                        {% if rsvp.user_id == current_user.id %}
+                          {% set rsvp_status = rsvp.status %}
+                        {% endif %}
+                      {% endfor %}
+                      - {{ rsvp_status|capitalize }}
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">{{ _('Keine eingeladenen Events.') }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row: Opt-In Approvals & RSVP Needed -->
+    <div class="row">
+      <!-- Card: Opt-Ins Needing Your Approval -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header">
+            <h3 class="card-title mb-0">{{ _('Opt-Ins / Anmeldungen, die Ihre Genehmigung benötigen') }}</h3>
+          </div>
+          <div class="card-body">
+            {% if need_accept_optins_events %}
+              <ul class="list-group">
+                {% for event in need_accept_optins_events|sort(attribute='event_date') %}
+                  <li class="list-group-item">
+                    <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                      {{ event.title }}
+                    </a>
+                    <small class="text-muted d-block">
+                      {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                      | {{ event.pending_opt_ins|length }} {{ _('ausstehende Opt-In(s)') }}
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">{{ _('Keine Genehmigungen erforderlich.') }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <!-- Card: Events Needing My RSVP -->
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header">
+            <h3 class="card-title mb-0">{{ _('Events, die meine Antwort (RSVP) benötigen') }}</h3>
+          </div>
+          <div class="card-body">
+            {% if need_rsvp_events %}
+              <ul class="list-group">
+                {% for event in need_rsvp_events|sort(attribute='event_date') %}
+                  <li class="list-group-item">
+                    <a href="{{ url_for('main.dinner_event_detail', event_id=event.id) }}">
+                      {{ event.title }}
+                    </a>
+                    <small class="text-muted d-block">
+                      {{ _('Am') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <small class="d-block text-muted">
+                      {{ _('Erstellt von') }} 
+                      <a href="{{ url_for('main.user', username=event.creator.username) }}">
+                        {{ event.creator.username }}
+                      </a>
+                    </small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">{{ _('Keine Events, die Ihre Antwort benötigen.') }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-5">
+      <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">
+        {{ _('Alle öffentliche Versanstaltungen erkunden') }}
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const upcomingBtn = document.getElementById('upcoming-events-btn');
+    const previousBtn = document.getElementById('previous-events-btn');
+    const upcomingSection = document.getElementById('upcoming-events');
+    const previousSection = document.getElementById('previous-events');
+
+    upcomingBtn.addEventListener('click', function() {
+      upcomingSection.style.display = 'block';
+      previousSection.style.display = 'none';
+      upcomingBtn.classList.add('active');
+      previousBtn.classList.remove('active');
+    });
+
+    previousBtn.addEventListener('click', function() {
+      upcomingSection.style.display = 'none';
+      previousSection.style.display = 'block';
+      previousBtn.classList.add('active');
+      upcomingBtn.classList.remove('active');
+    });
+  </script>
 {% endblock %}

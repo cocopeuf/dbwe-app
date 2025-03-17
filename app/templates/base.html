@@ -4,20 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% if title %}
-    <title>{{ title }} - Microblog</title>
+    <title>{{ title }} - Event Planner</title>
     {% else %}
-    <title>{{ _('Welcome to Microblog') }}</title>
+    <title>{{ _('Völlste Völlerei') }}</title>
     {% endif %}
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
         rel="stylesheet"
         integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
         crossorigin="anonymous">
+    {% block head %} 
+    {% endblock %}
   </head>
   <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
       <div class="container">
-        <a class="navbar-brand" href="{{ url_for('main.index') }}">Microblog</a>
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">Event Planner</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
@@ -27,15 +29,11 @@
               <a class="nav-link" aria-current="page" href="{{ url_for('main.index') }}">{{ _('Home') }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" aria-current="page" href="{{ url_for('main.explore') }}">{{ _('Explore') }}</a>
+              <a class="nav-link" aria-current="page" href="{{ url_for('main.explore') }}">{{ _('Öffentliche Versanstaltungen') }}</a>
             </li>
-            {% if g.search_form %}
-            <form class="navbar-form navbar-left" method="get" action="{{ url_for('main.search') }}">
-                <div class="form-group">
-                    {{ g.search_form.q(size=20, class='form-control', placeholder=g.search_form.q.label.text) }}
-                </div>
-            </form>
-            {% endif %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.event_calendar') }}">{{ _('Versanstaltungskalender') }}</a>
+            </li>
           </ul>
           <ul class="navbar-nav mb-2 mb-lg-0">
             {% if current_user.is_anonymous %}
@@ -54,7 +52,13 @@
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" aria-current="page" href="{{ url_for('main.user', username=current_user.username) }}">{{ _('Profile') }}</a>
+              <a class="nav-link" href="{{ url_for('main.create_dinner_event') }}">{{ _('Versanstaltung erstellen') }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.dinner_events_list') }}">{{ _('Meine Versanstaltungen') }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" aria-current="page" href="{{ url_for('main.user', username=current_user.username) }}">{{ _('Profil') }}</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" aria-current="page" href="{{ url_for('auth.logout') }}">{{ _('Logout') }}</a>
@@ -85,7 +89,10 @@
         {% endfor %}
       {% endif %}
       {% endwith %}
-      {% block content %}{% endblock %}
+      {% block content %}
+        {% block event_content %}
+        {% endblock %}
+      {% endblock %}
     </div>
     <script
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
@@ -97,7 +104,7 @@
     <script>
       async function translate(sourceElem, destElem, sourceLang, destLang) {
         document.getElementById(destElem).innerHTML = 
-          '<img src="{{ url_for('static', filename='loading.gif') }}">';
+          '<img src="{{ url_for('static', filename='loading.gif') }}>';
         const response = await fetch('/translate', {
           method: 'POST',
           headers: {'Content-Type': 'application/json; charset=utf-8'},
@@ -176,6 +183,20 @@
       }
       document.addEventListener('DOMContentLoaded', initialize_notifications);
       {% endif %}
+
+      function inviteUser(eventId) {
+        fetch(`/invite/${eventId}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json; charset=utf-8'}
+        }).then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('User invited successfully!');
+            } else {
+              alert('Failed to invite user.');
+            }
+          });
+      }
     </script>
   </body>
 </html>

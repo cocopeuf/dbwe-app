@@ -4,6 +4,8 @@ from app import db
 from app.models import User
 from app.api.errors import error_response
 
+#von miguelgrinberg übernommen
+
 basic_auth = HTTPBasicAuth()
 token_auth = HTTPTokenAuth()
 

@@ -2,6 +2,17 @@
 {% import "bootstrap_wtf.html" as wtf %}
 
 {% block content %}
-    <h1>{{ _('Edit Profile') }}</h1>
-    {{ wtf.quick_form(form) }}
+  <h1>{{ _('Edit Profile') }}</h1>
+  <form method="post" action="{{ url_for('main.edit_profile') }}">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.username.label(class="form-label") }}
+      {{ form.username(class="form-control") }}
+    </div>
+    <div class="mb-3">
+      {{ form.about_me.label(class="form-label") }}
+      {{ form.about_me(class="form-control") }}
+    </div>
+    <button type="submit" class="btn btn-primary">{{ _('Save changes') }}</button>
+  </form>
 {% endblock %}
