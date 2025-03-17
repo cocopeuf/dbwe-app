@@ -3,6 +3,7 @@ FROM python:3.11-slim
 COPY app app/
 COPY requirements.txt requirements.txt 
 COPY config.py config.py
+COPY tests.py tests
 COPY entrypoint.sh entrypoint.sh
 COPY dbwe-app.py dbwe-app.py
 
