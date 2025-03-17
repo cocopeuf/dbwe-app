@@ -3,7 +3,7 @@
   <h1>{{ event.title }}</h1>
   <p>{{ event.description }}</p>
   <p>{{ _('Created by') }}: <a href="{{ url_for('main.user', username=event.creator.username) }}">{{ event.creator.username }}</a></p>
-  <p><a href="{{ event.menu_url }}" target="_blank">{{ _('View Venue') }}</a></p>
+  <p><a href="{{ event.external_event_url }}" target="_blank">{{ _('View Venue') }}</a></p>
   <p>{{ _('Event Date:') }} {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}</p>
   {% if not event.is_public %}
     <p><span class="badge bg-secondary">{{ _('Private Event') }}</span></p>
