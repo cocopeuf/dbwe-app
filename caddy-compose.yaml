@@ -1,0 +1,15 @@
+services:
+  caddy:
+    image: caddy
+    container_name: caddy
+    network_mode: "host"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_config:/config
+      - caddy_data:/data
+      - ./certs:/certs
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

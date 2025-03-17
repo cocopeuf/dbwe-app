@@ -1,0 +1,58 @@
+DBWE_DOMAIN=https://your-valid-fqdn.example.com
+DBWE_TOKEN=$(curl -s -u student:student -X POST $DBWE_DOMAIN/api/tokens | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")                    
+
+# GETs
+curl -s -X GET -H "Authorization: Bearer $DBWE_TOKEN" $DBWE_DOMAIN/api/dinner_events| python3 -m json.tool
+curl -s -X GET -H "Authorization: Bearer $DBWE_TOKEN" $DBWE_DOMAIN/api/dinner_events/1| python3 -m json.tool
+curl -s -X GET -H "Authorization: Bearer $DBWE_TOKEN" $DBWE_DOMAIN/api/users/2/dinner_events| python3 -m json.tool
+
+# Populate some events
+curl -X POST $DBWE_DOMAIN/api/dinner_events \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $DBWE_TOKEN" \
+     -d '{
+           "title": "Public Event von Student",
+           "description": "Ein tolles Abendessen mit Pasta und Wein",
+           "external_event_url": "https://example.com/event",
+           "event_date": "2025-03-20T19:00:00",
+           "is_public": true
+         }'
+
+curl -X POST $DBWE_DOMAIN/api/dinner_events \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $DBWE_TOKEN" \
+     -d '{
+           "title": "Exklusives Dinner von Student",
+           "description": "Nur für VIP-Gäste",
+           "external_event_url": "https://example.com/vip-dinner",
+           "event_date": "2025-03-22T20:00:00",
+           "is_public": false,
+           "invitees": ["abc2", "testuser"]
+         }'
+
+DBWE_TOKEN=$(curl -s -u dozent:dozent -X POST $DBWE_DOMAIN/api/tokens | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")
+
+
+curl -X POST $DBWE_DOMAIN/api/dinner_events \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $DBWE_TOKEN" \
+     -d '{
+           "title": "Public Event von Dozent",
+           "description": "Ein tolles Abendessen mit Pasta und Wein",
+           "external_event_url": "https://example.com/event",
+           "event_date": "2025-03-20T19:00:00",
+           "is_public": true
+         }'
+
+curl -X POST $DBWE_DOMAIN/api/dinner_events \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $DBWE_TOKEN" \
+     -d '{
+           "title": "Exklusives Dinner von Dozent (mit student)",
+           "description": "Nur für VIP-Gäste",
+           "external_event_url": "https://example.com/vip-dinner",
+           "event_date": "2025-03-22T20:00:00",
+           "is_public": false,
+           "invitees": ["student", "testuser"]
+         }'
+
